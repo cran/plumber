@@ -1,6 +1,9 @@
 # plumber
 
 [![Build Status](https://travis-ci.org/trestletech/plumber.svg?branch=master)](https://travis-ci.org/trestletech/plumber)
+[![](http://www.r-pkg.org/badges/version/plumber)](http://www.r-pkg.org/pkg/plumber)
+[![CRAN RStudio mirror downloads](http://cranlogs.r-pkg.org/badges/plumber?color=brightgreen)](http://www.r-pkg.org/pkg/plumber)
+[![codecov](https://codecov.io/gh/trestletech/plumber/branch/master/graph/badge.svg)](https://codecov.io/gh/trestletech/plumber)
 
 <img align="right" src="http://plumber.trestletech.com/components/images/plumber.png" />
 
@@ -45,9 +48,22 @@ $ curl --data "a=4&b=3" "http://localhost:8000/sum"
  [7]
 ```
 
+You can also send your data as JSON:
+
+```
+$ curl --data '{"a":4, "b":5}' http://localhost:8000/sum
+ [9]
+```
+
 ## Installation
 
-Currently plumber is not available on CRAN, so you'll need to install it from GitHub. The easiest way to do that is by using `devtools`.
+You can install the latest stable version from CRAN using the following command:
+
+```r
+install.packages("plumber")
+```
+
+If you want to try out the latest development version, you can install it from GitHub. The easiest way to do that is by using `devtools`.
 
 ```r
 library(devtools)

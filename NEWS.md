@@ -1,3 +1,20 @@
+plumber 0.3.1
+--------------------------------------------------------------------------------
+* Add a method to consume JSON on post (you can still send a query string in
+  the body of a POST request as well).
+
+plumber 0.3.0
+--------------------------------------------------------------------------------
+* BREAKING CHANGE: serializer factories are now registered instead of the 
+  serializer themselves. Thus, `addSerializer()` now expects a function that
+  returns a serializer, and `Response$new()` now expects a serializer itself
+  rather than a character string naming a serializer. Internally it is the 
+  serializer itself that is attached to the response rather than the name of
+  the serializer. This allows for a serializer to customize its behavior.
+* Accept an additional argument on the `@serializer` annotation -- R code that
+  will be passed in as an argument to the serializer factory. See example
+  `09-content-type`.
+
 plumber 0.2.4
 --------------------------------------------------------------------------------
 * Add a filter which parses and sets req$cookies to be a list corresponding to
