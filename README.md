@@ -1,11 +1,11 @@
 # plumber
 
 [![Build Status](https://travis-ci.org/trestletech/plumber.svg?branch=master)](https://travis-ci.org/trestletech/plumber)
-[![](http://www.r-pkg.org/badges/version/plumber)](http://www.r-pkg.org/pkg/plumber)
-[![CRAN RStudio mirror downloads](http://cranlogs.r-pkg.org/badges/plumber?color=brightgreen)](http://www.r-pkg.org/pkg/plumber)
+[![](https://www.r-pkg.org/badges/version/plumber)](https://www.r-pkg.org/pkg/plumber)
+[![CRAN RStudio mirror downloads](https://cranlogs.r-pkg.org/badges/plumber?color=brightgreen)](https://www.r-pkg.org/pkg/plumber)
 [![codecov](https://codecov.io/gh/trestletech/plumber/branch/master/graph/badge.svg)](https://codecov.io/gh/trestletech/plumber)
 
-<img align="right" src="http://plumber.trestletech.com/components/images/plumber.png" />
+<img align="right" src="https://plumber.trestletech.com/components/images/plumber.png" />
 
 plumber allows you to create a REST API by merely decorating your existing R source code with special comments. Take a look at an example.
 
@@ -70,6 +70,14 @@ library(devtools)
 install_github("trestletech/plumber")
 library(plumber)
 ```
+
+## Hosting
+
+If you're just getting started with hosting cloud servers, the DigitalOcean integration included in plumber will be the best way to get started. You'll be able to get a server hosting your custom API in just two R commands. Full documentation is available at http://plumber.trestletech.com/docs/digitalocean/.
+
+A couple of other approaches to hosting plumber are also made available:
+ - PM2 - http://plumber.trestletech.com/docs/hosting/
+ - Docker - http://plumber.trestletech.com/docs/docker/
 
 ## Provenance
 
