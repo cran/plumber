@@ -13,6 +13,7 @@ checkAnalogSea <- function(){
 #'
 #' Create (if required), install the necessary prerequisites, and
 #' deploy a sample plumber application on a DigitalOcean virtual machine.
+#' You may sign up for a Digital Ocean account [here](https://m.do.co/c/add0b50f54c4).
 #' This command is idempotent, so feel free to run it on a single server multiple times.
 #' @param droplet The DigitalOcean droplet that you want to provision (see [analogsea::droplet()]). If empty, a new DigitalOcean server will be created.
 #' @param unstable If `FALSE`, will install plumber from CRAN. If `TRUE`, will install the unstable version of plumber from GitHub.
@@ -51,14 +52,17 @@ do_provision <- function(droplet, unstable=FALSE, example=TRUE, ...){
     analogsea::droplet_wait(droplet)
 
     # I often still get a closed port after droplet_wait returns. Buffer for just a bit
-    Sys.sleep(15)
+    Sys.sleep(25)
 
     # Refresh the droplet; sometimes the original one doesn't yet have a network interface.
     droplet <- analogsea::droplet(id=droplet$id)
   }
 
   # Provision
-  analogsea::debian_add_swap(droplet) # FIXME: don't do if already added, not idempotent.
+  lines <- droplet_capture(droplet, 'swapon | grep "/swapfile" | wc -l')
+  if (lines != "1"){
+    analogsea::debian_add_swap(droplet)
+  }
   install_new_r(droplet)
   install_plumber(droplet, unstable)
   install_api(droplet)
@@ -82,6 +86,19 @@ install_plumber <- function(droplet, unstable){
   } else {
     analogsea::install_r_package(droplet, "plumber")
   }
+}
+
+#' Captures the output from running some command via SSH
+#' @noRd
+droplet_capture <- function(droplet, command){
+    tf <- tempfile()
+    randName <- paste(sample(c(letters, LETTERS), size=10, replace=TRUE), collapse="")
+    analogsea::droplet_ssh(droplet, paste0(command, " > /tmp/", randName))
+    analogsea::droplet_download(droplet, paste0("/tmp/", randName), tf)
+    analogsea::droplet_ssh(droplet, paste0("rm /tmp/", randName))
+    lin <- readLines(tf)
+    file.remove(tf)
+    lin
 }
 
 install_api <- function(droplet){
@@ -112,7 +129,10 @@ install_nginx <- function(droplet){
 install_new_r <- function(droplet){
   analogsea::droplet_ssh(droplet, c("echo 'deb https://cran.rstudio.com/bin/linux/ubuntu xenial/' >> /etc/apt/sources.list",
                   "apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E084DAB9"))
-  analogsea::debian_apt_get_update(droplet)
+  # TODO: use the analogsea version once https://github.com/sckott/analogsea/issues/139 is resolved
+  #analogsea::debian_apt_get_update(droplet)
+  analogsea::droplet_ssh(droplet, "sudo apt-get update -qq", 'sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade')
+
   analogsea::debian_install_r(droplet)
 }
 
@@ -148,6 +168,7 @@ install_new_r <- function(droplet){
 #' @param force If `FALSE`, will abort if it believes that the given domain name
 #'   is not yet pointing at the appropriate IP address for this droplet. If
 #'   `TRUE`, will ignore this check and attempt to proceed regardless.
+#' @importFrom jsonlite fromJSON
 #' @export
 do_configure_https <- function(droplet, domain, email, termsOfService=FALSE, force=FALSE){
   checkAnalogSea()
@@ -158,16 +179,30 @@ do_configure_https <- function(droplet, domain, email, termsOfService=FALSE, for
   if (!force){
     nslookup <- tempfile()
 
-    analogsea::droplet_ssh(droplet, paste0("nslookup ", domain, " > /tmp/nslookup"))
-    analogsea::droplet_download(droplet, "/tmp/nslookup", nslookup)
+    nsout <- droplet_capture(droplet, paste0("nslookup ", domain))
 
-    nsout <- readLines(nslookup)
-    file.remove(nslookup)
     ips <- nsout[grepl("^Address: ", nsout)]
     ip <- gsub("^Address: (.*)$", "\\1", ips)
 
-    do_ips <- unlist(lapply(droplet$networks, function(x){ lapply(x, "[[", "ip_address") }))
-    if (length(intersect(ip, do_ips)) == 0){
+    # It turns out that the floating IP is not data that we have about the droplet
+    # Also, if the floating IP was assigned after we created the droplet object that was
+    # passed in, then we might not have that information available anyways.
+    # It turns out that we can use the 'Droplet Metadata' system to query for this info
+    # from the droplet to get a real-time response.
+    metadata <- droplet_capture(droplet, "curl http://169.254.169.254/metadata/v1.json")
+
+    parsed <- jsonlite::fromJSON(metadata)
+    floating <- unlist(lapply(parsed$floating_ip, function(ipv){ ipv$ip_address }))
+    ephemeral <- unlist(parsed$interfaces$public)["ipv4.ip_address"]
+
+    if (ip %in% ephemeral) {
+      warning("You should consider using a Floating IP address on your droplet for DNS. Currently ",
+              "you're using the ephemeral IP address of your droplet for DNS which is dangerous; ",
+              "as soon as you terminate your droplet your DNS records will be pointing to an IP ",
+              "address you no longer control. A floating IP will give you the opportunity to ",
+              "create a new droplet and reassign the floating IP used with DNS later.")
+    } else if (! ip %in% floating) {
+      print(list(ip=ip, floatingIPs = unname(floating), ephemeralIPs = unname(ephemeral)))
       stop("It doesn't appear that the domain name '", domain, "' is pointed to an IP address associated with this droplet. ",
            "This could be due to a DNS misconfiguration or because the changes just haven't propagated through the Internet yet. ",
            "If you believe this is an error, you can override this check by setting force=TRUE.")

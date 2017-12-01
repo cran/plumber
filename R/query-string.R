@@ -1,7 +1,11 @@
 queryStringFilter <- function(req){
-  qs <- req$QUERY_STRING
-  args <- parseQS(qs)
-  req$args <- c(req$args, args)
+  handled <- req$.internal$queryStringHandled
+  if (is.null(handled) || handled != TRUE){
+    qs <- req$QUERY_STRING
+    args <- parseQS(qs)
+    req$args <- c(req$args, args)
+    req$.internal$queryStringHandled <- TRUE
+  }
   forward()
 }
 
@@ -28,6 +32,16 @@ parseQS <- function(qs){
 
   ret <- as.list(vals)
   names(ret) <- keys
+
+  # If duplicates, combine
+  combine_elements <- function(name){
+    unname(unlist(ret[names(ret)==name]))
+  }
+
+  unique_names <- unique(names(ret))
+
+  ret <- lapply(unique_names, combine_elements)
+  names(ret) <- unique_names
 
   ret
 }

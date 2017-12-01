@@ -3,11 +3,12 @@ context("Plumber")
 test_that("Endpoints are properly identified", {
   r <- plumber$new("files/endpoints.R")
   expect_equal(length(r$endpoints), 1)
-  expect_equal(length(r$endpoints[[1]]), 4)
+  expect_equal(length(r$endpoints[[1]]), 5)
   expect_equal(r$endpoints[[1]][[1]]$exec(), 5)
-  expect_equal(r$endpoints[[1]][[2]]$exec(), 10)
-  expect_equal(r$endpoints[[1]][[3]]$exec(), 12)
-  expect_equal(r$endpoints[[1]][[4]]$exec(), 14)
+  expect_equal(r$endpoints[[1]][[2]]$exec(), 5)
+  expect_equal(r$endpoints[[1]][[3]]$exec(), 10)
+  expect_equal(r$endpoints[[1]][[4]]$exec(), 12)
+  expect_equal(r$endpoints[[1]][[5]]$exec(), 14)
 })
 
 test_that("Empty file is OK", {
@@ -25,15 +26,16 @@ test_that("The file is sourced in the envir", {
 test_that("Verbs translate correctly", {
   r <- plumber$new("files/verbs.R")
   expect_equal(length(r$endpoints), 1)
-  expect_equal(length(r$endpoints[[1]]), 8)
+  expect_equal(length(r$endpoints[[1]]), 9)
   expect_equal(r$endpoints[[1]][[1]]$verbs, c("GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS"))
   expect_equal(r$endpoints[[1]][[2]]$verbs, "GET")
   expect_equal(r$endpoints[[1]][[3]]$verbs, "PUT")
   expect_equal(r$endpoints[[1]][[4]]$verbs, "POST")
   expect_equal(r$endpoints[[1]][[5]]$verbs, "DELETE")
-  expect_equal(r$endpoints[[1]][[6]]$verbs, c("POST", "GET"))
-  expect_equal(r$endpoints[[1]][[7]]$verbs, "HEAD")
-  expect_equal(r$endpoints[[1]][[8]]$verbs, "OPTIONS")
+  expect_equal(r$endpoints[[1]][[6]]$verbs, "POST")
+  expect_equal(r$endpoints[[1]][[7]]$verbs, "GET")
+  expect_equal(r$endpoints[[1]][[8]]$verbs, "HEAD")
+  expect_equal(r$endpoints[[1]][[9]]$verbs, "OPTIONS")
 })
 
 test_that("Invalid file fails gracefully", {
@@ -42,28 +44,29 @@ test_that("Invalid file fails gracefully", {
 
 test_that("plumb accepts a file", {
   r <- plumb("files/endpoints.R")
-  expect_length(r$endpoints[[1]], 4)
+  expect_length(r$endpoints[[1]], 5)
 })
 
 test_that("plumb accepts a directory with a `plumber.R` file", {
   # works without trailing slash
   r <- plumb(dir = 'files')
   expect_equal(length(r$endpoints), 1)
-  expect_equal(length(r$endpoints[[1]]), 4)
+  expect_equal(length(r$endpoints[[1]]), 5)
 
   # works with trailing slash
   r <- plumb(dir = 'files/')
   expect_equal(length(r$endpoints), 1)
-  expect_equal(length(r$endpoints[[1]]), 4)
+  expect_equal(length(r$endpoints[[1]]), 5)
 
   # errors when no plumber.R found
-  expect_error(plumb(dir = 'files/static'), regexp="File does not exist: files/static/plumber.R")
+  expect_error(plumb(dir = 'files/static'), regexp="No plumber.R file found in the specified directory: files/static")
   # errors when neither dir is empty and file is not given
   expect_error(plumb(dir=""), regexp="You must specify either a file or directory*")
   # reads from working dir if no args
-  expect_error(plumb(), regexp="File does not exist: ./plumber.R")
+  expect_error(plumb(), regexp="No plumber.R file found in the specified directory: .")
   # errors when both dir and file are given
   expect_error(plumb(file="files/endpoints.R", dir="files"), regexp="You must set either the file or the directory parameter, not both")
+
 })
 
 test_that("plumb() a dir leverages `entrypoint.R`", {
@@ -92,11 +95,12 @@ test_that("Empty endpoints error", {
 test_that("The old roxygen-style comments work", {
   r <- plumber$new("files/endpoints-old.R")
   expect_equal(length(r$endpoints), 1)
-  expect_equal(length(r$endpoints[[1]]), 4)
+  expect_equal(length(r$endpoints[[1]]), 5)
   expect_equal(r$endpoints[[1]][[1]]$exec(), 5)
-  expect_equal(r$endpoints[[1]][[2]]$exec(), 10)
-  expect_equal(r$endpoints[[1]][[3]]$exec(), 12)
-  expect_equal(r$endpoints[[1]][[4]]$exec(), 14)
+  expect_equal(r$endpoints[[1]][[2]]$exec(), 5)
+  expect_equal(r$endpoints[[1]][[3]]$exec(), 10)
+  expect_equal(r$endpoints[[1]][[4]]$exec(), 12)
+  expect_equal(r$endpoints[[1]][[5]]$exec(), 14)
 })
 
 test_that("routes can be constructed correctly", {
@@ -187,7 +191,7 @@ test_that("mounts work", {
   pr <- plumber$new()
   sub <- plumber$new()
   sub$handle("GET", "/", function(){ 1 })
-  sub$handle("GET", "/nested/path", function(){ 2 })
+  sub$handle("GET", "/nested/path", function(a){ a })
 
   pr$mount("/subpath", sub)
 
@@ -195,8 +199,11 @@ test_that("mounts work", {
   pr$route(make_req("GET", "/nested/path"), res)
   expect_equal(res$status, 404)
 
-  val <- pr$route(make_req("GET", "/subpath/nested/path"), PlumberResponse$new())
-  expect_equal(val, 2)
+  val <- pr$route(make_req("GET", "/subpath/nested/path", qs="?a=123"), PlumberResponse$new())
+  expect_equal(val, "123")
+
+  val <- pr$route(make_req("GET", "/subpath/nested/path", body='{"a":123}'), PlumberResponse$new())
+  expect_equal(val, 123)
 
   val <- pr$route(make_req("GET", "/subpath/"), PlumberResponse$new())
   expect_equal(val, 1)

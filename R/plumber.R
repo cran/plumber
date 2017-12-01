@@ -30,21 +30,27 @@ plumb <- function(file, dir="."){
     # Parse dir
     dirMode <- TRUE
     dir <- sub("/$", "", dir)
-    file <- file.path(dir, "plumber.R")
+
+    # Find plumber.R in the directory case-insensitively
+    file <- list.files(dir, "^plumber\\.r$", ignore.case = TRUE, full.names = TRUE)
+    if (length(file) == 0){
+      stop("No plumber.R file found in the specified directory: ", dir)
+    }
 
   } else {
     # File was specified
     dirMode <- FALSE
   }
 
-  if (dirMode && file.exists(file.path(dir, "entrypoint.R"))){
+  entrypoint <- list.files(dir, "^entrypoint\\.r$", ignore.case = TRUE)
+  if (dirMode && length(entrypoint) > 0){
     # Dir was specified and we found an entrypoint.R
 
     old <- setwd(dir)
     on.exit(setwd(old))
 
     # Expect that entrypoint will provide us with the router
-    x <- source("entrypoint.R")
+    x <- source(entrypoint)
 
     # source returns a list with value and visible elements, we want the (visible) value object.
     pr <- x$value
@@ -182,17 +188,18 @@ plumber <- R6Class(
 
     },
     run = function(host='127.0.0.1', port=getOption('plumber.port'), swagger=interactive(),
-                   debug=interactive()){
+                   debug=interactive() ){
       port <- findPort(port)
 
       message("Starting server to listen on port ", port)
 
-      private$errorHandler <- defaultErrorHandler(debug)
+      on.exit({ options('plumber.debug' = getOption('plumber.debug')) })
+      options(plumber.debug = debug)
 
       # Set and restore the wd to make it appear that the proc is running local to the file's definition.
       if (!is.null(private$filename)){
         cwd <- getwd()
-        on.exit({ setwd(cwd) })
+        on.exit({ setwd(cwd) }, add = TRUE)
         setwd(dirname(private$filename))
       }
 
@@ -220,7 +227,7 @@ plumber <- R6Class(
         # Create a function that's hardcoded to return the swaggerfile -- regardless of env.
         fun <- function(schemes, host, path){
           if (!missing(schemes)){
-            sf$schemes <- schemes
+            sf$schemes <- I(schemes)
           }
 
           if (!missing(host)){
@@ -239,6 +246,8 @@ plumber <- R6Class(
         message("Running the swagger UI at ", sf$schemes[1], "://", sf$host, "/__swagger__/", sep="")
       }
 
+      on.exit(private$runHooks("exit"), add=TRUE)
+
       httpuv::runServer(host, port, self)
     },
     mount = function(path, router){
@@ -247,7 +256,7 @@ plumber <- R6Class(
       private$mnts[[path]] <- router
     },
     registerHook = function(stage=c("preroute", "postroute",
-                                    "preserialize", "postserialize"), handler){
+                                    "preserialize", "postserialize", "exit"), handler){
       stage <- match.arg(stage)
       super$registerHook(stage, handler)
     },
@@ -478,6 +487,7 @@ plumber <- R6Class(
       # old data here.
       # Set the arguments to an empty list
       req$args <- list()
+      req$.internal <- new.env()
 
       res <- PlumberResponse$new(private$serializer)
       self$serve(req, res)
