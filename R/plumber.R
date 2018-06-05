@@ -3,7 +3,7 @@
 NULL
 
 # used to identify annotation flags.
-verbs <- c("GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS")
+verbs <- c("GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS", "PATCH")
 enumerateVerbs <- function(v){
   if (identical(v, "use")){
     return(verbs)
@@ -113,7 +113,8 @@ hookable <- R6Class(
           args$value <- value
         }
       }
-      value
+      # Return the value as passed in or as explcitly modified by one or more hooks.
+      args$value
     }
   )
 )
@@ -145,8 +146,15 @@ plumber <- R6Class(
   public = list(
     initialize = function(file=NULL, filters=defaultPlumberFilters, envir){
 
-      if (!is.null(file) && !file.exists(file)){
-        stop("File does not exist: ", file)
+      if (!is.null(file)){
+        if (!file.exists(file)){
+          stop("File does not exist: ", file)
+        } else {
+          inf <- file.info(file)
+          if (inf$isdir){
+            stop("Expecting a file but found a directory: '", file, "'.")
+          }
+        }
       }
 
       if (missing(envir)){
@@ -188,7 +196,7 @@ plumber <- R6Class(
 
     },
     run = function(host='127.0.0.1', port=getOption('plumber.port'), swagger=interactive(),
-                   debug=interactive() ){
+                   debug=interactive(), swaggerCallback=getOption('plumber.swagger.url', NULL)){
       port <- findPort(port)
 
       message("Starting server to listen on port ", port)
@@ -243,7 +251,11 @@ plumber <- R6Class(
 
         plumberFileServer <- PlumberStatic$new(system.file("swagger-ui", package = "plumber"))
         self$mount("/__swagger__", plumberFileServer)
-        message("Running the swagger UI at ", sf$schemes[1], "://", sf$host, "/__swagger__/", sep="")
+        swaggerUrl = paste(sf$schemes[1], "://", sf$host, "/__swagger__/", sep="")
+        message("Running the swagger UI at ", swaggerUrl, sep="")
+        if (!is.null(swaggerCallback) && is.function(swaggerCallback)){
+          swaggerCallback(swaggerUrl)
+        }
       }
 
       on.exit(private$runHooks("exit"), add=TRUE)
@@ -359,7 +371,12 @@ plumber <- R6Class(
 
       val <- self$route(req, res)
 
-      private$runHooks("postroute", list(data=hookEnv, req=req, res=res, value=val))
+      # Because we're passing in a `value` argument here, `runHooks` will return either the
+      # unmodified `value` argument back, or will allow one or more hooks to modify the value,
+      # in which case the modified value will be returned. Hooks declare that they intend to
+      # modify the value by accepting a parameter named `value`, in which case their returned
+      # value will be used as the updated value.
+      val <- private$runHooks("postroute", list(data=hookEnv, req=req, res=res, value=val))
 
       if ("PlumberResponse" %in% class(val)){
         # They returned the response directly, don't serialize.
@@ -371,9 +388,9 @@ plumber <- R6Class(
           stop("Serializers must be closures: '", ser, "'")
         }
 
-        private$runHooks("preserialize", list(data=hookEnv, req=req, res=res, value=val))
+        val <- private$runHooks("preserialize", list(data=hookEnv, req=req, res=res, value=val))
         out <- ser(val, req, res, private$errorHandler)
-        private$runHooks("postserialize", list(data=hookEnv, req=req, res=res, value=val))
+        out <- private$runHooks("postserialize", list(data=hookEnv, req=req, res=res, value=out))
         out
       }
     },
@@ -499,7 +516,7 @@ plumber <- R6Class(
       warning("WebSockets not supported.")
     },
 
-    setSerializer = function(serlializer){
+    setSerializer = function(serializer){
       private$serializer <- serializer
     }, # Set a default serializer
 

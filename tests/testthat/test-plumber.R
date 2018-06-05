@@ -26,8 +26,8 @@ test_that("The file is sourced in the envir", {
 test_that("Verbs translate correctly", {
   r <- plumber$new("files/verbs.R")
   expect_equal(length(r$endpoints), 1)
-  expect_equal(length(r$endpoints[[1]]), 9)
-  expect_equal(r$endpoints[[1]][[1]]$verbs, c("GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS"))
+  expect_equal(length(r$endpoints[[1]]), 10)
+  expect_equal(r$endpoints[[1]][[1]]$verbs, c("GET", "PUT", "POST", "DELETE", "HEAD", "OPTIONS", "PATCH"))
   expect_equal(r$endpoints[[1]][[2]]$verbs, "GET")
   expect_equal(r$endpoints[[1]][[3]]$verbs, "PUT")
   expect_equal(r$endpoints[[1]][[4]]$verbs, "POST")
@@ -36,6 +36,7 @@ test_that("Verbs translate correctly", {
   expect_equal(r$endpoints[[1]][[7]]$verbs, "GET")
   expect_equal(r$endpoints[[1]][[8]]$verbs, "HEAD")
   expect_equal(r$endpoints[[1]][[9]]$verbs, "OPTIONS")
+  expect_equal(r$endpoints[[1]][[10]]$verbs, "PATCH")
 })
 
 test_that("Invalid file fails gracefully", {
@@ -45,6 +46,21 @@ test_that("Invalid file fails gracefully", {
 test_that("plumb accepts a file", {
   r <- plumb("files/endpoints.R")
   expect_length(r$endpoints[[1]], 5)
+})
+
+test_that("plumb gives a good error when passing in a dir instead of a file", {
+
+  if (identical(
+    tolower(Sys.info()[["sysname"]]),
+    "windows"
+  )) {
+    # https://stat.ethz.ch/R-manual/R-devel/library/base/html/files.html
+    # "However, directory names must not include a trailing backslash or slash on Windows"
+    expect_error(plumb("files/"), "File does not exist:")
+  } else {
+    expect_error(plumb("files/"), "Expecting a file but found a directory: 'files/'")
+  }
+
 })
 
 test_that("plumb accepts a directory with a `plumber.R` file", {
@@ -266,7 +282,7 @@ test_that("preroute hook gets the right data", {
   pr$serve(rqst, PlumberResponse$new())
 })
 
-test_that("postroute hook gets the right data", {
+test_that("postroute hook gets the right data and can modify", {
   pr <- plumber$new()
   pr$handle("GET", "/abc", function(){ 123 })
 
@@ -275,11 +291,13 @@ test_that("postroute hook gets the right data", {
     expect_equal(req$PATH_INFO, "/abc")
     expect_true(is.environment(data))
     expect_equal(value, 123)
+    "new val"
   })
-  pr$serve(make_req("GET", "/abc"), PlumberResponse$new())
+  res <- pr$serve(make_req("GET", "/abc"), PlumberResponse$new())
+  expect_equal(as.character(res$body), '["new val"]')
 })
 
-test_that("preserialize hook gets the right data", {
+test_that("preserialize hook gets the right data and can modify", {
   pr <- plumber$new()
   pr$handle("GET", "/abc", function(){ 123 })
 
@@ -288,11 +306,13 @@ test_that("preserialize hook gets the right data", {
     expect_equal(req$PATH_INFO, "/abc")
     expect_true(is.environment(data))
     expect_equal(value, 123)
+    "new val"
   })
-  pr$serve(make_req("GET", "/abc"), PlumberResponse$new())
+  res <- pr$serve(make_req("GET", "/abc"), PlumberResponse$new())
+  expect_equal(as.character(res$body), '["new val"]')
 })
 
-test_that("postserialize hook gets the right data", {
+test_that("postserialize hook gets the right data and can modify", {
   pr <- plumber$new()
   pr$handle("GET", "/abc", function(){ 123 })
 
@@ -300,9 +320,12 @@ test_that("postserialize hook gets the right data", {
     expect_true("PlumberResponse" %in% class(res))
     expect_equal(req$PATH_INFO, "/abc")
     expect_true(is.environment(data))
-    expect_equal(value, 123)
+    expect_equal(as.character(value$body), "[123]")
+    value$body <- "new val"
+    value
   })
-  pr$serve(make_req("GET", "/abc"), PlumberResponse$new())
+  res <- pr$serve(make_req("GET", "/abc"), PlumberResponse$new())
+  expect_equal(as.character(res$body), 'new val')
 })
 
 test_that("invalid hooks err", {
