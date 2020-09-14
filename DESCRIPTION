@@ -2,44 +2,48 @@ Encoding: UTF-8
 Package: plumber
 Type: Package
 Title: An API Generator for R
-Version: 0.4.6
+Version: 1.0.0
 Authors@R: c(
-  person(family="Trestle Technology, LLC", role="aut", email="cran@trestletech.com"),
-  person("Jeff", "Allen", role="cre", email="cran@trestletech.com"),
-  person("Frans", "van Dunné", role="ctb", email="frans@ixpantia.com"),
-  person("Sebastiaan", "Vandewoude", role="ctb", email="sebastiaanvandewoude@gmail.com"),
-  person(family="SmartBear Software", role=c("ctb", "cph"), comment="swagger-ui"))
+  person("Barret", "Schloerke", role = c("cre", "aut"), email = "barret@rstudio.com"),
+  person("Jeff", "Allen", role = c("aut", "ccp"), email = "cran@trestletech.com"),
+  person("Bruno", "Tremblay", role = "ctb", email = "cran@neoxone.com"),
+  person("Frans", "van Dunné", role = "ctb", email = "frans@ixpantia.com"),
+  person("Sebastiaan", "Vandewoude", role="ctb", email = "sebastiaanvandewoude@gmail.com"),
+  person(family = "RStudio", role = c("cph", "fnd")))
 License: MIT + file LICENSE
-BugReports: https://github.com/trestletech/plumber/issues
-URL: https://www.rplumber.io (site)
-        https://github.com/trestletech/plumber (dev)
+BugReports: https://github.com/rstudio/plumber/issues
+URL: https://www.rplumber.io, https://github.com/rstudio/plumber
 Description: Gives the ability to automatically generate and serve an HTTP API
     from R functions using the annotations in the R documentation around your
     functions.
 Depends: R (>= 3.0.0)
 Imports: R6 (>= 2.0.0), stringi (>= 0.3.0), jsonlite (>= 0.9.16),
-        httpuv (>= 1.2.3), crayon
+        webutils (>= 1.1), httpuv (>= 1.5.0), crayon, promises (>=
+        1.1.0), sodium, swagger (>= 3.33.0), magrittr, mime, lifecycle
 LazyData: TRUE
 ByteCompile: TRUE
-Suggests: testthat (>= 0.11.0), XML, rmarkdown, PKI, base64enc,
-        htmlwidgets, visNetwork, analogsea
-Collate: 'content-types.R' 'cookie-parser.R' 'parse-globals.R'
-        'images.R' 'parse-block.R' 'globals.R' 'serializer-json.R'
-        'shared-secret-filter.R' 'post-body.R' 'query-string.R'
-        'plumber.R' 'default-handlers.R' 'digital-ocean.R'
-        'find-port.R' 'includes.R' 'new-rstudio-project.R' 'paths.R'
-        'plumber-static.R' 'plumber-step.R' 'response.R'
-        'serializer-content-type.R' 'serializer-html.R'
-        'serializer-htmlwidget.R' 'serializer-xml.R' 'serializer.R'
-        'session-cookie.R' 'swagger.R'
-RoxygenNote: 6.0.1
+Suggests: testthat (>= 0.11.0), rmarkdown, base64enc, htmlwidgets,
+        visNetwork, later, readr, yaml, feather, future
+RoxygenNote: 7.1.1
+Collate: 'async.R' 'content-types.R' 'default-handlers.R' 'hookable.R'
+        'shared-secret-filter.R' 'parser-cookie.R' 'parse-body.R'
+        'parse-query.R' 'plumber.R' 'deprecated-R6.R' 'deprecated.R'
+        'digital-ocean.R' 'find-port.R' 'globals.R' 'includes.R'
+        'json.R' 'new-rstudio-project.R' 'openapi-spec.R'
+        'openapi-types.R' 'paths.R' 'plumb-block.R' 'plumb-globals.R'
+        'plumb.R' 'plumber-options.R' 'plumber-response.R'
+        'plumber-static.R' 'plumber-step.R' 'pr.R' 'pr_set.R'
+        'serializer.R' 'session-cookie.R' 'ui.R' 'utf8.R'
+        'utils-pipe.R' 'utils.R' 'validate_api_spec.R' 'zzz.R'
+RdMacros: lifecycle
 NeedsCompilation: no
-Packaged: 2018-06-04 22:23:10 UTC; barret
-Author: Trestle Technology, LLC [aut],
-  Jeff Allen [cre],
+Packaged: 2020-09-14 16:36:27 UTC; barret
+Author: Barret Schloerke [cre, aut],
+  Jeff Allen [aut, ccp],
+  Bruno Tremblay [ctb],
   Frans van Dunné [ctb],
   Sebastiaan Vandewoude [ctb],
-  SmartBear Software [ctb, cph] (swagger-ui)
-Maintainer: Jeff Allen <cran@trestletech.com>
+  RStudio [cph, fnd]
+Maintainer: Barret Schloerke <barret@rstudio.com>
 Repository: CRAN
-Date/Publication: 2018-06-05 04:43:03 UTC
+Date/Publication: 2020-09-14 21:40:02 UTC
