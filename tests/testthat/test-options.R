@@ -1,14 +1,12 @@
 context("Options")
 
 test_that("Options set and get", {
-  option_value <- getOption("plumber.port")
-  on.exit({
-    options(plumber.port = option_value)
-  }, add = TRUE)
-  options_plumber(port = FALSE)
-  expect_false(getOption("plumber.port"))
-  options_plumber(port = NULL)
-  expect_null(getOption("plumber.port"))
+  with_options(list(plumber.port = NULL), {
+    options_plumber(port = FALSE)
+    expect_false(getOption("plumber.port"))
+    options_plumber(port = NULL)
+    expect_null(getOption("plumber.port"))
+  })
 })
 
 test_that("all options used are `options_plumber()` parameters", {
@@ -39,10 +37,46 @@ test_that("all options used are `options_plumber()` parameters", {
   deprecated_options <-  c("plumber.swagger.url")
   plumber_options_used <- plumber_options_used[!(plumber_options_used %in% deprecated_options)]
   ### code to match formals
-  options_plumber_formals <- paste0("plumber.", sort(names(formals(options_plumber))))
+  formals_to_match <-
+    sort(setdiff(
+      names(formals(options_plumber)),
+      "..."
+    ))
+  options_plumber_formals <- paste0("plumber.", formals_to_match)
 
   expect_equal(
     plumber_options_used,
     options_plumber_formals
+  )
+})
+
+
+test_that("Legacy swagger redirect can be disabled", {
+  with_options(
+    list(
+      plumber.legacyRedirets = getOption("plumber.legacyRedirects")
+    ), {
+      options_plumber(legacyRedirects = TRUE)
+      redirects <- swagger_redirects()
+      expect_gt(length(redirects), 0)
+
+      options_plumber(legacyRedirects = FALSE)
+      redirects <- swagger_redirects()
+      expect_equal(length(redirects), 0)
+    }
+  )
+})
+
+test_that("docs.callback sync plumber.swagger.url", {
+  with_options(
+    list(
+      plumber.swagger.url = getOption("plumber.swagger.url"),
+      plumber.docs.callback = getOption("plumber.docs.callback")
+    ), {
+      options("plumber.swagger.url" = function(api_url) {cat(api_url)})
+      opt <- options_plumber(docs.callback = NULL)
+      expect_null(getOption("plumber.swagger.url"))
+      expect_null(opt$plumber.docs.callback)
+    }
   )
 })

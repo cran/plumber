@@ -16,8 +16,16 @@ test_that("Endpoints are properly identified", {
   expect_equal(exec_endpoint(r, 5), 14)
 })
 
-test_that("Empty file is OK", {
+test_that("Empty file argument is OK", {
   r <- pr()
+  expect_equal(length(r$endpoints), 0)
+})
+
+test_that("Empty file is OK", {
+  f <- tempfile()
+  writeLines(character(), f)
+  on.exit(unlink(f), add = TRUE)
+  r <- pr(f)
   expect_equal(length(r$endpoints), 0)
 })
 
@@ -54,6 +62,9 @@ test_that("plumb accepts a file", {
 })
 
 test_that("plumb gives a good error when passing in a dir instead of a file", {
+
+  # brittle test. Fails on r-devel-windows-x86_64-gcc10-UCRT
+  skip_on_cran()
 
   if (isWindows()) {
     # https://stat.ethz.ch/R-manual/R-devel/library/base/html/files.html
@@ -153,6 +164,25 @@ test_that("routes can be constructed correctly", {
 
   stat <- PlumberStatic$new(".")
   pr$mount("/static", stat)
+
+  pr3 <- pr()
+  pr_get(pr3, "a/b", function(){})
+  pr_get(pr3, "a", function(){})
+  expect_length(pr3$routes$a, 2)
+
+  pr4 <- pr()
+  pr_get(pr4, "a", function(){})
+  pr_post(pr4, "a/b/c/f", function(){})
+  pr_get(pr4, "a/b/c/f", function(){})
+  pr_get(pr4, "a/b/c/f/g/h/j/k", function(){})
+  pr_get(pr4, "v/b/c/f", function(){})
+  pr_get(pr4, "v/b/c/b", function(){})
+  pr_get(pr4, "v/b/c/a", function(){})
+  pr_get(pr4, "t", function(){})
+  pr_post(pr4, "u/b/c/f", function(){})
+  pr_get(pr4, "i/b/c/f/g/h/j/k", function(){})
+  expect_equal(names(pr4$routes), c("a", "a", "i", "t", "u", "v"))
+  expect_equal(names(pr4$routes$v$b$c), c("a", "b", "f"))
 
   expect_length(pr$routes, 3)
   expect_s3_class(pr$routes[["static"]], "PlumberStatic")
@@ -321,24 +351,66 @@ test_that("invalid hooks err", {
 })
 
 test_that("handle invokes correctly", {
-  pr <- pr()
-  pr$handle("GET", "/trailslash", function(){ "getter" })
-  pr$handle("POST", "/trailslashp/", function(){ "poster" })
+  with_options(
+    list(plumber.trailingSlash = NULL),
+    {
+      pr <- pr()
+      pr$handle("GET", "/trailslash", function(){ "getter" })
+      pr$handle("POST", "/trailslashp/", function(){ "poster" })
 
-  expect_equal(pr$call(make_req("GET", "/trailslash"))$body, jsonlite::toJSON("getter"))
-  res <- pr$call(make_req("GET", "/trailslash/")) # With trailing slash
-  expect_equal(res$status, 404)
-  res <- pr$call(make_req("POST", "/trailslash")) # Wrong verb
-  expect_equal(res$status, 405)
+      expect_equal(pr$call(make_req("GET", "/trailslash"))$body, jsonlite::toJSON("getter"))
+      res <- pr$call(make_req("GET", "/trailslash/")) # With trailing slash
+      expect_equal(res$status, 404)
+      res <- pr$call(make_req("POST", "/trailslash")) # Wrong verb
+      expect_equal(res$status, 405)
 
-  expect_equal(pr$call(make_req("POST", "/trailslashp/"))$body, jsonlite::toJSON("poster"))
-  res <- pr$call(make_req("POST", "/trailslashp")) # w/o trailing slash
-  expect_equal(res$status, 404)
-  res <- pr$call(make_req("GET", "/trailslashp/")) # Wrong verb
-  expect_equal(res$status, 405)
-
+      expect_equal(pr$call(make_req("POST", "/trailslashp/"))$body, jsonlite::toJSON("poster"))
+      res <- pr$call(make_req("POST", "/trailslashp")) # w/o trailing slash
+      expect_equal(res$status, 404)
+      res <- pr$call(make_req("GET", "/trailslashp/")) # Wrong verb
+      expect_equal(res$status, 405)
+    }
+  )
 
 })
+
+test_that("trailing slashes are redirected", {
+
+  pr <- pr() %>%
+    pr_get("/get/", function(a) a) %>%
+    pr_post("/post/", function(a) a) %>%
+    pr_mount(
+      "/mnt",
+      pr() %>%
+        pr_get("/", function(a) a)
+    )
+
+  with_options(list(plumber.trailingSlash = FALSE), {
+    res <- pr$call(make_req("GET", "/get", "?a=1"))
+    expect_equal(res$status, 404)
+
+    res <- pr$call(make_req("POST", "/post", "?a=1"))
+    expect_equal(res$status, 404)
+
+    res <- pr$call(make_req("GET", "/mnt", "?a=1"))
+    expect_equal(res$status, 404)
+  })
+
+  with_options(list(plumber.trailingSlash = TRUE), {
+    res <- pr$call(make_req("GET", "/get", "?a=1"))
+    expect_equal(res$status, 307)
+    expect_equal(res$headers$Location, "/get/?a=1")
+
+    res <- pr$call(make_req("POST", "/post", "?a=1"))
+    expect_equal(res$status, 307)
+    expect_equal(res$headers$Location, "/post/?a=1")
+
+    res <- pr$call(make_req("GET", "/mnt", "?a=1"))
+    expect_equal(res$status, 307)
+    expect_equal(res$headers$Location, "/mnt/?a=1")
+  })
+})
+
 
 test_that("No 405 on same path, different verb", {
 
@@ -522,4 +594,14 @@ test_that("routes that don't start with a slash are prepended with a slash", {
 
   expect_equal(length(pr$endpoints[[1]]), 1L)
   expect_equal(pr$endpoints[[1]][[1]]$path, "/nested/path/here")
+})
+
+test_that("handle method rejects forbidden arguments", {
+  pr <- pr()
+  expect_error(pr$handle("GET", "nested/path/here", function(){}, envir = new.env()),
+               "can not be supplied to", )
+  expect_error(pr$handle("GET", "nested/path/here", function(){}, verbs = "GET"),
+               "can not be supplied to")
+  expect_error(pr$handle("GET", "nested/path/here", function(){}, expr = function(){}),
+               "can not be supplied to")
 })

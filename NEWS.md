@@ -1,3 +1,62 @@
+plumber 1.1.0
+--------------------------------------------------------------------------------
+
+### Breaking changes
+
+* Force json serialization of endpoint error responses instead of using endpoint serializer. (@meztez, #689)
+
+* When plumbing a Plumber file and using a Plumber router modifier (`#* @plumber`), an error will be thrown if the original router is not returned. (#738)
+
+* `options_plumber()` now requires that all options are named. If no option name is provided, an error with be thrown. (#746)
+
+### New features
+
+* Added option `plumber.trailingSlash`. This option (which is **disabled** by default) allows routes to be redirected to route definitions with a trailing slash. For example, if a `GET` request is submitted to `/test?a=1` with no `/test` route is defined, but a `GET` `/test/` route definition does exist, then the original request will respond with a `307` to reattempt against `GET` `/test/?a=1`. This option will be _enabled_ by default in a future release. This logic executed for before calling the `404` handler. (#746)
+
+* Added an experimental option `plumber.methodNotAllowed`. This option (which is enabled by default) allows for a status of `405` to be returned if an invalid method is used when requesting a valid route. This logic executed for before calling the default `404` handler. (#746)
+
+* Passing `edit = TRUE` to `plumb_api()` will open the API source file. (#699)
+
+* OpenAPI Specification can be set using a file path. (@meztez #696)
+
+* Guess OpenAPI response content type from serializer. (@meztez #684)
+
+* Undeprecated `Plumber$run(debug=, swaggerCallback=)` and added the parameters for `Plumber$run(docs=, quiet=)` and `pr_run(debug=, docs=, swaggerCallback=, quiet=)`. Now, all four parameters will not produce lingering effects on the `Plumber` router. (@jcheng5 #765)
+  * Setting `quiet = TRUE` will suppress routine startup messages.
+  * Setting `debug = TRUE`, will display information when an error occurs. See `pr_set_debug()`.
+  * Setting `docs` will update the visual documentation. See `pr_set_docs()`.
+  * Set `swaggerCallback` to a function which will be called with a url to the documentation, or `NULL` to do nothing. See `pr_set_docs_callback()`.
+
+* To update a `PlumberEndpoint` path after initialization, call the new `PlumberEndpoint$setPath(path)`. This will update internal path matching meta data. (Active bindings were not used to avoid breaking changes.) (@blairj09 #770)
+
+* `PlumberStep` (and `PlumberEndpoint` and `PlumberFilter`) received a new field `$srcref` and method `$getFunc()`. `$srcref` will contain the corresponding `srcref` information from original source file. `$getFunc()` will return the evaluated function. (#782)
+
+* Allow for spaces in `@apiTag` and `@tag` when tag is surrounded by single or double quotes. (#685)
+
+### Bug fixes
+
+* Ignore regular comments in block parsing. (@meztez #718)
+
+* Block parsing comments, tags and responses ordering match plumber api ordering. (#722)
+
+* Fixed bug where `httpuv` would return a status of `500` with body `An exception occurred` if no headers were set on the response object. (#745)
+
+* Fixed bug where all `pr_*()` returned invisibly. Now all `pr_*()` methods will print the router if displayed in the console. (#740)
+
+* When calling `Plumber$handle()` and defining a new `PlumberEndpoint`, `...` will be checked for invalid names. (@meztez, #677)
+
+* `/__swagger__/` now always redirects to `/__docs__/`, even when Swagger isn't the selected interface. Use `options(plumber.legacyRedirects = FALSE)` to disable this behavior. (@blairj09 #694)
+
+* Fixed `available_apis()` bug where all packages printed all available APIs. (@meztez #708)
+
+* Fixed Plumber `$routes` resolution bugs. Routes are now returned in lexicographical order. (@meztez #702)
+
+* Plumber will now display a circular reference if one is found while printing. (#738)
+
+* Changed `future::plan()` from `multiprocess` to `multisession` in example API `14-future` as "Strategy 'multiprocess' is deprecated in future (>= 1.20.0)". (#747)
+
+* Setting options `plumber.docs.callback` to `NULL` will also set deprecated but supported option `plumber.swagger.url`. (#766)
+
 plumber 1.0.0
 --------------------------------------------------------------------------------
 
@@ -369,7 +428,7 @@ plumber 0.2.2
 
 plumber 0.2.1
 --------------------------------------------------------------------------------
-* Add more Roxygen documentation for exported functions
+* Add more `roxygen2` documentation for exported functions
 * Remove the warning in the README as the API seems to be stabilizing.
 
 

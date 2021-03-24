@@ -2,7 +2,7 @@
 
 # Mount OpenAPI and Docs
 #' @noRd
-mount_docs <- function(pr, host, port, docs_info, callback) {
+mount_docs <- function(pr, host, port, docs_info, callback, quiet = FALSE) {
 
   # return early if not enabled
   if (!isTRUE(docs_info$enabled)) {
@@ -21,19 +21,23 @@ mount_docs <- function(pr, host, port, docs_info, callback) {
     )
   )
 
-  # Mount openAPI spec paths openapi.json
+  # Mount OpenAPI spec paths openapi.json
   mount_openapi(pr, api_url)
 
   # Mount Docs
   if (length(registered_docs()) == 0) {
-    message("No visual documentation options registered. See help(register_docs).")
+    if (!isTRUE(quiet)) {
+      message("No visual documentation options registered. See help(register_docs).")
+    }
     return()
   }
 
   if (is_docs_available(docs_info$docs)) {
     docs_mount <- .globals$docs[[docs_info$docs]]$mount
     docs_url <- do.call(docs_mount, c(list(pr, api_url), docs_info$args))
-    message("Running ", docs_info$docs, " Docs at ", docs_url, sep = "")
+    if (!isTRUE(quiet)) {
+      message("Running ", docs_info$docs, " Docs at ", docs_url, sep = "")
+    }
   } else {
     return()
   }
@@ -67,7 +71,7 @@ unmount_docs <- function(pr, docs_info) {
     return()
   }
 
-  # Unount openAPI spec paths openapi.json
+  # Unount OpenAPI spec paths openapi.json
   unmount_openapi(pr)
 
   # Mount Docs
@@ -180,13 +184,9 @@ register_docs <- function(name, index, static = NULL) {
   stopifnot(is.function(index))
   if (!is.null(static)) stopifnot(is.function(static))
 
-  is_swagger <- isTRUE(name == "swagger")
-
   docs_root <- paste0("/__docs__/")
   docs_paths <- c("/index.html", "/")
-
   mount_docs_func <- function(pr, api_url, ...) {
-
     # Save initial extra argument values
     args_index <- list(...)
 
@@ -213,12 +213,16 @@ register_docs <- function(name, index, static = NULL) {
 
     pr$mount(docs_root, docs_router)
 
-    # add legacy swagger redirects
-    if (is_swagger) {
-      redirect_info <- swagger_redirects()
-      for (path in names(redirect_info)) {
-        pr_get(pr, path, redirect_info[[path]])
+    # add legacy swagger redirects (RStudio Connect)
+    redirect_info <- swagger_redirects()
+    for (path in names(redirect_info)) {
+      if (router_has_route(pr, path, "GET")) {
+        message("Overwriting existing GET endpoint: ", path, ". Disable by setting `options_plumber(legacyRedirects = FALSE)`")
       }
+      if (router_has_route(pr, redirect_info[[path]]$route, "GET")) {
+        message("Overwriting existing GET endpoint: ", redirect_info[[path]]$route, ". Disable by setting `options_plumber(legacyRedirects = FALSE)`")
+      }
+      pr_get(pr, path, redirect_info[[path]]$handler)
     }
 
     docs_url <- paste0(api_url, docs_root)
@@ -228,12 +232,11 @@ register_docs <- function(name, index, static = NULL) {
     pr$unmount(docs_root)
 
     # remove legacy swagger redirects
-    if (is_swagger) {
-      redirect_info <- swagger_redirects()
-      for (path in names(redirect_info)) {
-        pr$removeHandle("GET", path)
-      }
+    redirect_info <- swagger_redirects()
+    for (path in names(redirect_info)) {
+      pr$removeHandle("GET", path)
     }
+
     invisible()
   }
 
@@ -253,13 +256,20 @@ registered_docs <- function() {
 
 
 swagger_redirects <- function() {
+  if (!isTRUE(getOption("plumber.legacyRedirects", TRUE))) {
+    return(list())
+  }
+
   to_route <- function(route) {
-    function(req, res) {
-      res$status <- 301 # redirect permanently
-      res$setHeader("Location", route)
-      res$body <- "redirecting..."
-      res
-    }
+    list(
+      route = route,
+      handler = function(req, res) {
+        res$status <- 301 # redirect permanently
+        res$setHeader("Location", route)
+        res$body <- "redirecting..."
+        res
+      }
+    )
   }
   list(
     "/__swagger__/" = to_route("../__docs__/"),

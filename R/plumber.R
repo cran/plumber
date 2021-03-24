@@ -1,5 +1,6 @@
 #' @import R6
 #' @import stringi
+#' @importFrom rlang %||%
 NULL
 
 # used to identify annotation flags.
@@ -30,11 +31,11 @@ defaultPlumberFilters <- list(
 
 #' Package Plumber Router
 #'
-#' Routers are the core request handler in plumber. A router is responsible for
+#' Routers are the core request handler in \pkg{plumber}. A router is responsible for
 #' taking an incoming request, submitting it through the appropriate filters and
 #' eventually to a corresponding endpoint, if one is found.
 #'
-#' See \url{https://www.rplumber.io/articles/programmatic-usage.html} for additional
+#' See the [Programmatic Usage](https://www.rplumber.io/articles/programmatic-usage.html) article for additional
 #' details on the methods available on this object.
 #' @seealso
 #'  [pr()],
@@ -54,6 +55,7 @@ Plumber <- R6Class(
   "Plumber",
   inherit = Hookable,
   public = list(
+
     #' @description Create a new `Plumber` router
     #'
     #' See also [plumb()], [pr()]
@@ -85,7 +87,6 @@ Plumber <- R6Class(
       }
 
       # Initialize
-      private$maxSize <- getOption('plumber.maxRequestSize', 0) #0  Unlimited
       self$setSerializer(serializer_json())
       # Default parsers to maintain legacy features
       self$setParsers(c("json", "form", "text", "octet", "multi"))
@@ -93,13 +94,13 @@ Plumber <- R6Class(
       self$set404Handler(default404Handler)
       self$setDocs(TRUE)
       private$docs_info$has_not_been_set <- TRUE # set to know if `$setDocs()` has been called before `$run()`
-      self$setDocsCallback(getOption('plumber.docs.callback', getOption('plumber.swagger.url', NULL)))
-      self$setDebug(interactive())
+      private$docs_callback <- rlang::missing_arg()
+      private$debug <- NULL
       self$setApiSpec(NULL)
 
       # Add in the initial filters
       for (fn in names(filters)){
-        fil <- PlumberFilter$new(fn, filters[[fn]], private$envir, private$default_serializer, NULL)
+        fil <- PlumberFilter$new(fn, filters[[fn]], private$envir, private$default_serializer, NULL, NULL)
         private$filts <- c(private$filts, fil)
       }
 
@@ -118,20 +119,20 @@ Plumber <- R6Class(
           private$disable_run <- FALSE
         }, add = TRUE)
 
-        for (i in 1:length(private$parsed)){
+        for (i in seq_len(length(private$parsed))) {
           e <- private$parsed[i]
 
-          srcref <- attr(e, "srcref")[[1]][c(1,3)]
+          srcref <- attr(e, "srcref")[[1]]
 
           evaluateBlock(srcref, private$lines, e, private$envir, private$addEndpointInternal,
                         private$addFilterInternal, self)
         }
 
-        private$globalSettings <- plumbGlobals(private$lines)
+        private$globalSettings <- plumbGlobals(private$lines, private$envir)
       }
 
     },
-    #' @description Start a server using `plumber` object.
+    #' @description Start a server using `Plumber` object.
     #'
     #' See also: [pr_run()]
     #' @param host a string that is a valid IPv4 or IPv6 address that is owned by
@@ -142,55 +143,111 @@ Plumber <- R6Class(
     #' Mac OS X, port numbers smaller than 1025 require root privileges.
     #'
     #' This value does not need to be explicitly assigned. To explicitly set it, see [options_plumber()].
-    #' @param debug Deprecated. See `$setDebug()`
-    #' @param swagger Deprecated. See `$setDocs(docs)` or `$setApiSpec()`
-    #' @param swaggerCallback Deprecated. See `$setDocsCallback()`
+    #' @param debug If `TRUE`, it will provide more insight into your API errors. Using this value will only last for the duration of the run. If a `$setDebug()` has not been called, `debug` will default to `interactive()` at `$run()` time. See `$setDebug()` for more details.
+    #' @param swagger Deprecated. Please use `docs` instead. See `$setDocs(docs)` or `$setApiSpec()` for more customization.
+    #' @param swaggerCallback An optional single-argument function that is
+    #'   called back with the URL to an OpenAPI user interface when one becomes
+    #'   ready. If missing, defaults to information previously set with `$setDocsCallback()`.
+    #'   This value will only be used while running the router.
+    #' @param docs Visual documentation value to use while running the API.
+    #'   This value will only be used while running the router.
+    #'   If missing, defaults to information previously set with `setDocs()`.
+    #'   For more customization, see `$setDocs()` or [pr_set_docs()] for examples.
+    #' @param quiet If `TRUE`, don't print routine startup messages.
+    #' @param ... Should be empty.
     #' @importFrom lifecycle deprecated
+    #' @importFrom rlang missing_arg
     run = function(
       host = '127.0.0.1',
       port = getOption('plumber.port', NULL),
       swagger = deprecated(),
-      debug = deprecated(),
-      swaggerCallback = deprecated()
+      debug = missing_arg(),
+      swaggerCallback = missing_arg(),
+      ...,
+      # any new args should go below `...`
+      docs = missing_arg(),
+      quiet = FALSE
     ) {
 
       if (isTRUE(private$disable_run)) {
         stop("Plumber router `$run()` method should not be called while `plumb()`ing a file")
       }
 
+      ellipsis::check_dots_empty()
+
       # Legacy support for RStudio pro products.
       # Checks must be kept for >= 2 yrs after plumber v1.0.0 release date
-      if (lifecycle::is_present(debug)) {
-        lifecycle::deprecate_warn("1.0.0", "run(debug = )", "setDebug(debug = )")
-        self$setDebug(debug)
-      }
       if (lifecycle::is_present(swagger)) {
-        if (is.function(swagger)) {
-          # between v0.4.6 and v1.0.0
-          lifecycle::deprecate_warn("1.0.0", "run(swagger = )", "setApiSpec(api = )")
-          self$setApiSpec(swagger)
-          # spec is now enabled by default. Do not alter
+        if (!rlang::is_missing(docs)) {
+          lifecycle::deprecate_warn("1.0.0", "Plumber$run(swagger = )", "Plumber$run(docs = )", details = "`docs` will take preference (ignoring `swagger`)")
+          # (`docs` is resolved after `swagger` checks)
         } else {
-          if (isTRUE(private$docs_info$has_not_been_set)) {
-            # <= v0.4.6
-            lifecycle::deprecate_warn("1.0.0", "run(swagger = )", "setDocs(docs = )")
-            self$setDocs(swagger)
+          if (is.function(swagger)) {
+            # between v0.4.6 and v1.0.0
+            lifecycle::deprecate_warn("1.0.0", "Plumber$run(swagger = )", "Plumber$setApiSpec(api = )")
+            # set the new api function and force turn on the docs
+            old_api_spec_handler <- private$api_spec_handler
+            self$setApiSpec(swagger)
+            on.exit({
+              private$api_spec_handler <- old_api_spec_handler
+            }, add = TRUE)
+            docs <- TRUE
           } else {
-            # $setDocs() has been called (other than during initialization).
-            # Believe that it is the correct behavior
-            # Warn about updating the run method
-            lifecycle::deprecate_warn("1.0.0", "run(swagger = )", details = "The plumber docs have already been set. Ignoring `swagger` parameter.")
+            if (isTRUE(private$docs_info$has_not_been_set)) {
+              # <= v0.4.6
+              lifecycle::deprecate_warn("1.0.0", "Plumber$run(swagger = )", "Plumber$run(docs = )")
+              docs <- swagger
+            } else {
+              # $setDocs() has been called (other than during initialization).
+              # `docs` is not provided
+              # Believe that prior `$setDocs()` behavior is the correct behavior
+              # Warn about updating the run method
+              lifecycle::deprecate_warn("1.0.0", "Plumber$run(swagger = )", "Plumber$run(docs = )", details = "The Plumber docs have already been set. Ignoring `swagger` parameter.")
+            }
           }
         }
-      }
-      if (lifecycle::is_present(swaggerCallback)) {
-        lifecycle::deprecate_warn("1.0.0", "run(swaggerCallback = )", "setDocsCallback(callback = )")
-        self$setDocsCallback(swaggerCallback)
       }
 
       port <- findPort(port)
 
-      message("Running plumber API at ", urlHost(host = host, port = port, changeHostLocation = FALSE))
+      # Delay setting max size option. It could be set in `plumber.R`, which is after initialization
+      private$maxSize <- getOption('plumber.maxRequestSize', 0) #0  Unlimited
+
+      # Delay the setting of swaggerCallback as long as possible.
+      # An option could be set in `plumber.R`, which is after initialization
+      # Order: Run method parameter, internally set value, option, fallback option, NULL
+      swaggerCallback <-
+        rlang::maybe_missing(swaggerCallback,
+          rlang::maybe_missing(private$docs_callback,
+            getOption('plumber.docs.callback', getOption('plumber.swagger.url', NULL))
+          )
+        )
+
+      # Delay the setting of debug as long as possible.
+      # The router could be made in an interactive setting and used in background process.
+      # Do not determine if interactive until run time
+      prev_debug <- private$debug
+      on.exit({
+        private$debug <- prev_debug
+      }, add = TRUE)
+      # Fix the debug value while running.
+      self$setDebug(
+        # Order: Run method param, internally set value, is interactive()
+        # `$getDebug()` is dynamic given `setDebug()` has never been called.
+        rlang::maybe_missing(debug, self$getDebug())
+      )
+
+      docs_info <-
+        if (!rlang::is_missing(docs)) {
+          # Manually provided. Need to upgrade the parameter
+          upgrade_docs_parameter(docs)
+        } else {
+          private$docs_info
+        }
+
+      if (!isTRUE(quiet)) {
+        message("Running plumber API at ", urlHost(host = host, port = port, changeHostLocation = FALSE))
+      }
 
       # Set and restore the wd to make it appear that the proc is running local to the file's definition.
       if (!is.null(private$filename)) {
@@ -198,15 +255,16 @@ Plumber <- R6Class(
         on.exit({setwd(old_wd)}, add = TRUE)
       }
 
-      if (isTRUE(private$docs_info$enabled)) {
+      if (isTRUE(docs_info$enabled)) {
         mount_docs(
           pr = self,
           host = host,
           port = port,
-          docs_info = private$docs_info,
-          callback = private$docs_callback
+          docs_info = docs_info,
+          callback = swaggerCallback,
+          quiet = quiet
         )
-        on.exit(unmount_docs(self, private$docs_info), add = TRUE)
+        on.exit(unmount_docs(self, docs_info), add = TRUE)
       }
 
       on.exit(private$runHooks("exit"), add = TRUE)
@@ -332,7 +390,7 @@ Plumber <- R6Class(
     #' @param serializer a serializer function.
     #' @param parsers a named list of parsers.
     #' @param endpoint a `PlumberEndpoint` object.
-    #' @param ... additional arguments for `PlumberEndpoint` creation
+    #' @param ... additional arguments for [PlumberEndpoint] `new` method (namely `lines`, `params`, `comments`, `responses` and `tags`. Excludes `envir`).
     #' @examples
     #' \dontrun{
     #' pr <- pr()
@@ -342,7 +400,7 @@ Plumber <- R6Class(
     #' }
     handle = function(methods, path, handler, preempt, serializer, parsers, endpoint, ...) {
       epdef <- !missing(methods) || !missing(path) || !missing(handler) || !missing(serializer) || !missing(parsers)
-      if (!missing(endpoint) && epdef){
+      if (!missing(endpoint) && epdef) {
         stop("You must provide either the components for an endpoint (handler and serializer) OR provide the endpoint yourself. You cannot do both.")
       }
 
@@ -353,8 +411,18 @@ Plumber <- R6Class(
         if (missing(parsers)) {
           parsers <- private$parsers
         }
+        forbid <- c("verbs", "expr", "envir")
+        forbid_check <- forbid %in% names(list(...))
+        if (any(forbid_check)) {
+          stop(paste0("`", forbid[forbid_check], "`", collapse = ", "), " can not be supplied to `pr$handle()` method.")
+        }
 
-        endpoint <- PlumberEndpoint$new(methods, path, handler, private$envir, serializer, parsers, ...)
+        endpoint <- PlumberEndpoint$new(verbs = methods,
+                                        path = path,
+                                        expr = handler,
+                                        envir = private$envir,
+                                        serializer = serializer,
+                                        parsers = parsers, ...)
       }
       private$addEndpointInternal(endpoint, preempt)
     },
@@ -380,12 +448,29 @@ Plumber <- R6Class(
       if (!topLevel){
         cat("\u2502 ") # "| "
       }
+
+      # Avoid printing recursion (mount on mount on mount on ...)
+      if (!isTRUE(topLevel)) {
+        if (isTRUE(self$flags$is_printing)) {
+          cat(
+            crayon::bgYellow(
+              crayon::black(
+                "# Circular Plumber router definition detected")),
+            "\n", sep=""
+          )
+          return()
+        }
+        # set flags to avoid inf recursion
+        on.exit({ self$flags$is_printing <- NULL }, add = TRUE)
+        self$flags$is_printing <- TRUE
+      }
+
       cat(crayon::silver("# Plumber router with ", endCount, " endpoint", ifelse(endCount == 1, "", "s"),", ",
                          as.character(length(private$filts)), " filter", ifelse(length(private$filts) == 1, "", "s"),", and ",
                          as.character(length(self$mounts)), " sub-router", ifelse(length(self$mounts) == 1, "", "s"),".\n", sep=""))
 
       if(topLevel){
-        cat(prefix, crayon::silver("# Call run() on this object to start the API.\n"), sep="")
+        cat(prefix, crayon::silver("# Use `pr_run()` on this object to start the API.\n"), sep="")
       }
 
       # Filters
@@ -433,7 +518,13 @@ Plumber <- R6Class(
               TRUE
             } else {
               # there are other endpoints, so get only nodes with name ""
-              names(node) == ""
+              # which path does not end with / and path is not root
+              node_path <- function(node) {
+                path <- node$path %||% ""
+                if (!is.character(path)) path <-""
+                path
+              }
+              names(node) == "" & !grepl(".+/$", vapply(node, node_path, character(1)))
             }
 
           # mounted routers at root location will also have a missing name.
@@ -462,7 +553,7 @@ Plumber <- R6Class(
       }
       printNode(self$routes, "", prefix, TRUE)
 
-      invisible(self)
+      invisible(self) # actually needs to be invisible
     },
     #' @description Serve a request
     #' @param req request object
@@ -692,6 +783,48 @@ Plumber <- R6Class(
 
       # No endpoint could handle this request. 404
       notFoundStep <- function(...) {
+
+        if (isTRUE(getOption("plumber.trailingSlash", FALSE))) {
+          # Redirect to the slash route, if it exists
+          path <- req$PATH_INFO
+          # If the path does not end in a slash,
+          if (!grepl("/$", path)) {
+            new_path <- paste0(path, "/")
+            # and a route with a slash exists...
+            if (router_has_route(req$pr, new_path, req$REQUEST_METHOD)) {
+
+              # Temp redirect with same REQUEST_METHOD
+              # Add on the query string manually. They do not auto transfer
+              # The POST body will be reissued by caller
+              new_location <- paste0(new_path, req$QUERY_STRING)
+              res$status <- 307
+              res$setHeader(
+                name = "Location",
+                value = new_location
+              )
+              res$serializer <- serializer_unboxed_json()
+              return(
+                list(message = "307 - Redirecting with trailing slash")
+              )
+            }
+          }
+        }
+
+        # No trailing-slash route exists...
+        # Try allowed verbs
+
+        if (isTRUE(getOption("plumber.methodNotAllowed", TRUE))) {
+          # Notify about allowed verbs
+          if (is_405(req$pr, req$PATH_INFO, req$REQUEST_METHOD)) {
+            res$status <- 405L
+            # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Allow
+            res$setHeader("Allow", paste(req$verbsAllowed, collapse = ", "))
+            res$serializer <- serializer_unboxed_json()
+            return(list(error = "405 - Method Not Allowed"))
+          }
+        }
+
+        # Notify that there is no route found
         private$notFoundHandler(req = req, res = res)
       }
       steps <- append(steps, list(notFoundStep))
@@ -798,33 +931,17 @@ Plumber <- R6Class(
     #' See also: [pr_set_docs()], [register_docs()], [registered_docs()]
     #' @param docs a character value or a logical value. See [pr_set_docs()] for examples.
     #'  If using [options_plumber()], the value must be set before initializing your Plumber router.
-    #' @param ... Other params to be passed to `docs` functions.
+    #' @param ... Arguments for the visual documentation. See each visual documentation package for further details.
     setDocs = function(
       docs = getOption("plumber.docs", TRUE),
       ...
     ) {
-      stopifnot(length(docs) == 1)
-      stopifnot(is.logical(docs) || is.character(docs))
-      if (isTRUE(docs)) {
-        docs <- "swagger"
-      }
-      if (is.character(docs) && is_docs_available(docs)) {
-        enabled <- TRUE
-      } else {
-        enabled <- FALSE
-        docs <- "__not_enabled__"
-      }
-      private$docs_info <- list(
-        enabled = enabled,
-        docs = docs,
-        args = list(...)
-      )
+      private$docs_info <- upgrade_docs_parameter(docs, ...)
     },
     #' @description Set a callback to notify where the API's visual documentation is located.
     #'
     #' When set, it will be called with a character string corresponding
-    #' to the API docs url. This allows RStudio to open `swagger` docs when a
-    #' Plumber router [pr_run()] method is executed.
+    #' to the API docs url. This allows RStudio to locate visual documentation.
     #'
     #' If using [options_plumber()], the value must be set before initializing your Plumber router.
     #'
@@ -842,7 +959,7 @@ Plumber <- R6Class(
       }
       private$docs_callback <- callback
     },
-    #' @description Set debug value to include error messages
+    #' @description Set debug value to include error messages.
     #'
     #' See also: `$getDebug()` and [pr_set_debug()]
     #' @param debug `TRUE` provides more insight into your API errors.
@@ -850,11 +967,11 @@ Plumber <- R6Class(
       stopifnot(length(debug) == 1)
       private$debug <- isTRUE(debug)
     },
-    #' @description Retrieve the `debug` value.
+    #' @description Retrieve the `debug` value. If it has never been set, the result of `interactive()` will be used.
     #'
     #' See also: `$getDebug()` and [pr_set_debug()]
     getDebug = function() {
-      private$debug
+      private$debug %||% default_debug()
     },
     #' @description Add a filter to plumber router
     #'
@@ -867,18 +984,24 @@ Plumber <- R6Class(
       private$addFilterInternal(filter)
     },
     #' @description
-    #' Add a function to customize what is returned in `$getApiSpec()`.
+    #' Allows to modify router autogenerated OpenAPI Specification
     #'
     #' Note, the returned value will be sent through [serializer_unboxed_json()] which will turn all length 1 vectors into atomic values.
     #' To force a vector to serialize to an array of size 1, be sure to call [as.list()] on your value. `list()` objects are always serialized to an array value.
     #'
     #' See also: [pr_set_api_spec()]
-    #' @param api This can be
-    #'   * an OpenAPI Specification formatted list object
-    #'   * a function that accepts the OpenAPI Specification autogenerated by `plumber` and returns a OpenAPI Specification formatted list object.
-    #'
-    #'  The value returned will not be validated for OAS compatibility.
+    #' @template pr_setApiSpec__api
     setApiSpec = function(api = NULL) {
+      if (is.character(api) && length(api) == 1 && file.exists(api)) {
+        if (tools::file_ext(api) %in% c("yaml", "yml")) {
+          if (!requireNamespace("yaml", quietly = TRUE)) {
+            stop("yaml must be installed to read yaml format")
+          }
+          api <- yaml::read_yaml(api, eval.expr = FALSE)
+        } else {
+          api <- jsonlite::read_json(api, simplifyVector = TRUE)
+        }
+      }
       api_fun <-
         if (is.null(api)) {
           identity
@@ -894,7 +1017,7 @@ Plumber <- R6Class(
         }
       private$api_spec_handler <- api_fun
     },
-    #' @description Retrieve openAPI file
+    #' @description Retrieve OpenAPI file
     getApiSpec = function() { #FIXME: test
 
       routerSpec <- private$routerSpecificationInternal(self)
@@ -913,6 +1036,10 @@ Plumber <- R6Class(
 
       ret
     },
+
+    # list of key/value pairs that should be temporarily set. Ex: is_printing = 1
+    #' @field flags For internal use only
+    flags = list(),
 
 
     ### Legacy/Deprecated
@@ -966,34 +1093,34 @@ Plumber <- R6Class(
       warning("addGlobalProcessor has been deprecated in v0.4.0 and will be removed in a coming release. Please use `registerHook`(s) instead.")
       self$registerHooks(proc)
     },
-    #' @description Deprecated. Retrieve openAPI file
+    #' @description Deprecated. Retrieve OpenAPI file
     openAPIFile = function() {
       warning("`$openAPIFile()` has been deprecated in v1.0.0 and will be removed in a coming release. Please use `$getApiSpec()`.")
       self$getApiSpec()
     },
-    #' @description Deprecated. Retrieve openAPI file
+    #' @description Deprecated. Retrieve OpenAPI file
     swaggerFile = function() {
       warning("`$swaggerFile()` has been deprecated in v1.0.0 and will be removed in a coming release. Please use `$getApiSpec()`.")
       self$getApiSpec()
     }
   ), active = list(
-    #' @field endpoints plumber router endpoints read-only
+    #' @field endpoints Plumber router endpoints read-only
     endpoints = function(){
       private$ends
     },
-    #' @field filters plumber router filters read-only
+    #' @field filters Plumber router filters read-only
     filters = function(){
       private$filts
     },
-    #' @field mounts plumber router mounts read-only
+    #' @field mounts Plumber router mounts read-only
     mounts = function(){
       private$mnts
     },
-    #' @field environment plumber router environment read-only
+    #' @field environment Plumber router environment read-only
     environment = function() {
       private$envir
     },
-    #' @field routes plumber router routes read-only
+    #' @field routes Plumber router routes read-only
     routes = function(){
       paths <- list()
 
@@ -1010,7 +1137,27 @@ Plumber <- R6Class(
         if (is.null(node)){
           node <- list()
         }
-        node[[children[1]]] <- addPath(node[[children[1]]], children[-1], endpoint)
+
+        # Check for existing endpoints at current children node that share the same name
+        matching_name_nodes <- node[names(node) == children[1]]
+        existing_endpoints <- vapply(matching_name_nodes, inherits, logical(1), "PlumberEndpoint")
+
+        # This is for situation where an endpoint is on `/A` and you
+        # also have route with an endpoint on `A/B`. Resulting nested list
+        # already has an endpoint on the children node and you need a deeper nested
+        # list for the current children node. Combine them.
+        if (any(existing_endpoints) && length(children) > 1) {
+          node <- c(
+            # Nodes with preexisting endpoints sharing the same name
+            matching_name_nodes[existing_endpoints],
+            # New nested list to combine with, passing the nodes that are not endpoints
+            addPath(matching_name_nodes[!existing_endpoints], children, endpoint)
+          )
+        } else {
+          # Keep building the nested list until you hit an endpoint
+          node[[children[1]]] <- addPath(node[[children[1]]], children[-1], endpoint)
+        }
+
         node
       }
 
@@ -1020,6 +1167,8 @@ Plumber <- R6Class(
           path <- sub("^/", "", e$path)
 
           levels <- strsplit(path, "/", fixed=TRUE)[[1]]
+          # If there is a trailing `/`, add a blank level for an extra print line
+          if (grepl("/$", path)) {levels <- c(levels, "")}
           paths <<- addPath(paths, levels, e)
         })
       })
@@ -1037,11 +1186,21 @@ Plumber <- R6Class(
         }
       }
 
-      # TODO: Sort lexicographically
+      lexisort <- function(paths) {
+        if (is.list(paths)) {
+          paths <- lapply(paths, lexisort)
+          if (!is.null(names(paths))) {
+            paths <- paths[order(names(paths))]
+          }
+        }
+        paths
+      }
 
-      paths
+      lexisort(paths)
     }
-  ), private = list(
+  ),
+  private = list(
+
     default_serializer = NULL, # The default serializer for the router
     default_parsers = NULL, # The default parsers for the router
 
@@ -1058,7 +1217,7 @@ Plumber <- R6Class(
 
     errorHandler = NULL,
     notFoundHandler = NULL,
-    maxSize = NULL, # Max request size in bytes
+    maxSize = 0, # Max request size in bytes. (0 is a no-op)
 
     api_spec_handler = NULL,
     docs_info = NULL,
@@ -1068,7 +1227,8 @@ Plumber <- R6Class(
     addFilterInternal = function(filter){
       # Create a new filter and add it to the router
       private$filts <- c(private$filts, filter)
-      invisible(self)
+
+      self
     },
     addEndpointInternal = function(ep, preempt){
       noPreempt <- missing(preempt) || is.null(preempt)
@@ -1079,9 +1239,9 @@ Plumber <- R6Class(
       }
       if (!noPreempt && ! preempt %in% filterNames){
         if (!is.null(ep$lines)){
-          stopOnLine(ep$lines[1], private$fileLines[ep$lines[1]], paste0("The given @preempt filter does not exist in this plumber router: '", preempt, "'"))
+          stopOnLine(ep$lines[1], private$fileLines[ep$lines[1]], paste0("The given @preempt filter does not exist in this Plumber router: '", preempt, "'"))
         } else {
-          stop(paste0("The given preempt filter does not exist in this plumber router: '", preempt, "'"))
+          stop(paste0("The given preempt filter does not exist in this Plumber router: '", preempt, "'"))
         }
       }
 
@@ -1152,9 +1312,32 @@ Plumber <- R6Class(
 
 
 
+upgrade_docs_parameter <- function(docs, ...) {
+  stopifnot(length(docs) == 1)
+  stopifnot(is.logical(docs) || is.character(docs))
+  if (isTRUE(docs)) {
+    docs <- "swagger"
+  }
+  if (is.character(docs) && is_docs_available(docs)) {
+    enabled <- TRUE
+  } else {
+    enabled <- FALSE
+    docs <- "__not_enabled__"
+  }
+
+  list(
+    enabled = enabled,
+    docs = docs,
+    args = list(...),
+    has_not_been_set = FALSE
+  )
+}
 
 
 
+default_debug <- function() {
+  interactive()
+}
 
 
 urlHost <- function(scheme = "http", host, port, path = "", changeHostLocation = FALSE) {

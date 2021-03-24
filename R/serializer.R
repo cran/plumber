@@ -76,6 +76,7 @@ serializer_identity <- function(){
 #' @return Object with class `"plumber_attachment"`
 #' @export
 #' @examples
+#' \dontrun{
 #' # plumber.R
 #'
 #' #' @get /data
@@ -83,6 +84,7 @@ serializer_identity <- function(){
 #' function() {
 #'   # will cause the file to be saved as `iris.csv`, not `data` or `data.csv`
 #'   as_attachment(iris, "iris.csv")
+#' }
 #' }
 as_attachment <- function(value, filename = NULL) {
   stopifnot(is.character(filename) || is.null(filename))
@@ -103,7 +105,7 @@ as_attachment <- function(value, filename = NULL) {
 #'
 #' Serializers are used in Plumber to transform the R object produced by a
 #' filter/endpoint into an HTTP response that can be returned to the client. See
-#' [here](https://book.rplumber.io/articles/rendering-output.html#serializers-1) for
+#' [here](https://www.rplumber.io/articles/rendering-output.html#serializers-1) for
 #' more details on Plumber serializers and how to customize their behavior.
 #' @describeIn serializers Add a static list of headers to each return value. Will add `Content-Disposition` header if a value is the result of `as_attachment()`.
 #' @param ... extra arguments supplied to respective internal serialization function.
@@ -445,7 +447,8 @@ self_set_serializer <- function(self, serializer) {
   } else {
     self$serializer <- serializer
   }
-  invisible(self)
+
+  self
 }
 
 
@@ -645,13 +648,20 @@ add_serializers_onLoad <- function() {
 createGraphicsDevicePromiseDomain <- function(which = dev.cur()) {
   force(which)
 
+  if (which < 2) {
+    stop(
+      "`createGraphicsDevicePromiseDomain()` was called without opening a device first.",
+      " Open a new graphics device before calling."
+    )
+  }
+
   promises::new_promise_domain(
     wrapOnFulfilled = function(onFulfilled) {
       force(onFulfilled)
       function(...) {
         old <- dev.cur()
-        dev.set(which)
-        on.exit(dev.set(old))
+        dev_set(which)
+        on.exit(dev_set(old))
 
         onFulfilled(...)
       }
@@ -660,18 +670,27 @@ createGraphicsDevicePromiseDomain <- function(which = dev.cur()) {
       force(onRejected)
       function(...) {
         old <- dev.cur()
-        dev.set(which)
-        on.exit(dev.set(old))
+        dev_set(which)
+        on.exit(dev_set(old))
 
         onRejected(...)
       }
     },
     wrapSync = function(expr) {
       old <- dev.cur()
-      dev.set(which)
-      on.exit(dev.set(old))
+      dev_set(which)
+      on.exit(dev_set(old))
 
       force(expr)
     }
   )
+}
+
+dev_set <- function(i) {
+  # make sure to not open a new device when calling `dev.set(1)`
+  if (i > 1) {
+    dev.set(i)
+  } else {
+    warning("Can not set `.Device` to the `null device`. Was `dev.off()` manually called?")
+  }
 }

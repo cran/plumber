@@ -11,6 +11,7 @@ stopOnLine <- function(lineNum, line, msg){
 
 #' @param lineNum The line number just above the function we're documenting
 #' @param file A character vector representing all the lines in the file
+#' @param envir An environment where to evaluate parsed expressions
 #' @noRd
 plumbBlock <- function(lineNum, file, envir = parent.frame()){
   paths <- NULL
@@ -20,13 +21,19 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
   parsers <- NULL
   assets <- NULL
   params <- NULL
-  comments <- ""
+  comments <- NULL
   responses <- NULL
   tags <- NULL
   routerModifier <- NULL
-  while (lineNum > 0 && (stri_detect_regex(file[lineNum], pattern="^#['\\*]") || stri_trim_both(file[lineNum]) == "")){
+  while (lineNum > 0 && (stri_detect_regex(file[lineNum], pattern="^#['\\*]?|^\\s*$") || stri_trim_both(file[lineNum]) == "")){
 
     line <- file[lineNum]
+
+    # If the line does not start with a plumber tag `#*` or `#'`, continue to next line
+    if (!stri_detect_regex(line, pattern="^#['\\*]")) {
+      lineNum <- lineNum - 1
+      next
+    }
 
     epMat <- stri_match(line, regex="^#['\\*]\\s*@(get|put|post|use|delete|head|options|patch)(\\s+(.*)$)?")
     if (!is.na(epMat[1,2])){
@@ -188,7 +195,7 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
       parsers[[parser_alias]] <- arg_list
     }
 
-    responseMat <- stri_match(line, regex="^#['\\*]\\s*@response\\s+(\\w+)\\s+(\\S.+)\\s*$")
+    responseMat <- stri_match(line, regex="^#['\\*]\\s*@response\\s+(\\w+)\\s+(\\S.*)\\s*$")
     if (!is.na(responseMat[1,1])){
       resp <- list()
       resp[[responseMat[1,2]]] <- list(description=responseMat[1,3])
@@ -210,9 +217,9 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
       params[[name]] <- list(desc=paramMat[1,6], type=apiType, required=required, isArray=isArray)
     }
 
-    tagMat <- stri_match(line, regex="^#['\\*]\\s*@tag\\s+(\\S.+)\\s*")
+    tagMat <- stri_match(line, regex="^#['\\*]\\s*@tag\\s+(\"[^\"]+\"|'[^']+'|\\S+)\\s*")
     if (!is.na(tagMat[1,1])){
-      t <- stri_trim_both(tagMat[1,2])
+      t <- stri_trim_both(tagMat[1,2], pattern = "[[\\P{Wspace}]-[\"']]")
       if (is.na(t) || t == ""){
         stopOnLine(lineNum, line, "No tag specified.")
       }
@@ -224,7 +231,7 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
 
     commentMat <- stri_match(line, regex="^#['\\*]\\s*([^@\\s].*$)")
     if (!is.na(commentMat[1,2])){
-      comments <- paste(comments, commentMat[1,2])
+      comments <- c(comments, trimws(commentMat[1,2]))
     }
 
     routerModifierMat <- stri_match(line, regex="^#['\\*]\\s*@plumber")
@@ -236,16 +243,16 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
   }
 
   list(
-    paths = paths,
+    paths = rev(paths),
     preempt = preempt,
     filter = filter,
     serializer = serializer,
-    parsers = parsers,
+    parsers = rev(parsers),
     assets = assets,
     params = rev(params),
-    comments = comments,
-    responses = responses,
-    tags = tags,
+    comments = paste0(rev(comments), collapse = " "),
+    responses = rev(responses),
+    tags = rev(tags),
     routerModifier = routerModifier
   )
 }
@@ -253,7 +260,8 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
 #' Evaluate and activate a "block" of code found in a plumber API file.
 #' @noRd
 evaluateBlock <- function(srcref, file, expr, envir, addEndpoint, addFilter, pr) {
-  lineNum <- srcref[1] - 1
+  lines <- srcref[c(1,3)]
+  lineNum <- lines[1] - 1
 
   block <- plumbBlock(lineNum, file, envir)
 
@@ -271,7 +279,8 @@ evaluateBlock <- function(srcref, file, expr, envir, addEndpoint, addFilter, pr)
         envir = envir,
         serializer = block$serializer,
         parsers = block$parsers,
-        lines = srcref,
+        lines = lines,
+        srcref = srcref,
         params = block$params,
         comments = block$comments,
         responses = block$responses,
@@ -281,7 +290,8 @@ evaluateBlock <- function(srcref, file, expr, envir, addEndpoint, addFilter, pr)
       addEndpoint(ep, block$preempt)
     })
   } else if (!is.null(block$filter)){
-    filter <- PlumberFilter$new(block$filter, expr, envir, block$serializer, srcref)
+    filter <- PlumberFilter$new(block$filter, expr, envir, block$serializer,
+      lines = lines, srcref = srcref)
     addFilter(filter)
 
   } else if (!is.null(block$assets)){
@@ -296,18 +306,35 @@ evaluateBlock <- function(srcref, file, expr, envir, addEndpoint, addFilter, pr)
     pr$mount(path, stat)
 
   } else if (!is.null(block$routerModifier)) {
-    if (is.expression(expr)){
+    if (is.expression(expr)) {
       func <- tryCatch({
         eval(expr, envir)
       }, error = function(e) {
         stopOnLine(lineNum, file[lineNum], e)
       })
-      if (is.function(func)) {
-        func(pr)
-        return()
+
+      if (!is.function(func)) {
+        stopOnLine(lineNum, file[lineNum], "Invalid expression for @plumber tag, please use the form `function(pr) { }`.")
+      }
+
+      # Use time as an ID
+      # Creating a new pr() takes at least a millisec
+      pr_id <- as.numeric(Sys.time())
+      pr$flags$id <- pr_id
+      on.exit({
+        pr$flags$id <- NULL
+      }, add = TRUE)
+
+      # process func
+      func_ret <- func(pr)
+
+      if (inherits(func_ret, "Plumber")) {
+        func_ret_id <- func_ret$flags$id
+        if (!identical(pr_id, func_ret_id)) {
+          stopOnLine(lineNum, file[lineNum], "Plumber object returned is not the same as the one provided.")
+        }
       }
     }
-    stopOnLine(lineNum, file[lineNum], "Invalid expression for @plumber tag, please use the form `function(pr) { }`.")
   } else {
     tryCatch({
       eval(expr, envir)
@@ -315,4 +342,8 @@ evaluateBlock <- function(srcref, file, expr, envir, addEndpoint, addFilter, pr)
       stopOnLine(lineNum, file[lineNum], e)
     })
   }
+
+  # Show that we are returning nothing
+  # Only modify pr in place
+  return()
 }

@@ -9,11 +9,11 @@ Package Plumber Router
 Package Plumber Router
 }
 \details{
-Routers are the core request handler in plumber. A router is responsible for
+Routers are the core request handler in \pkg{plumber}. A router is responsible for
 taking an incoming request, submitting it through the appropriate filters and
 eventually to a corresponding endpoint, if one is found.
 
-See \url{https://www.rplumber.io/articles/programmatic-usage.html} for additional
+See the \href{https://www.rplumber.io/articles/programmatic-usage.html}{Programmatic Usage} article for additional
 details on the methods available on this object.
 }
 \examples{
@@ -116,18 +116,25 @@ pr$setErrorHandler(function(req, res, err) {
 \section{Super class}{
 \code{\link[plumber:Hookable]{plumber::Hookable}} -> \code{Plumber}
 }
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{flags}}{For internal use only}
+}
+\if{html}{\out{</div>}}
+}
 \section{Active bindings}{
 \if{html}{\out{<div class="r6-active-bindings">}}
 \describe{
-\item{\code{endpoints}}{plumber router endpoints read-only}
+\item{\code{endpoints}}{Plumber router endpoints read-only}
 
-\item{\code{filters}}{plumber router filters read-only}
+\item{\code{filters}}{Plumber router filters read-only}
 
-\item{\code{mounts}}{plumber router mounts read-only}
+\item{\code{mounts}}{Plumber router mounts read-only}
 
-\item{\code{environment}}{plumber router environment read-only}
+\item{\code{environment}}{Plumber router environment read-only}
 
-\item{\code{routes}}{plumber router routes read-only}
+\item{\code{routes}}{Plumber router routes read-only}
 }
 \if{html}{\out{</div>}}
 }
@@ -204,7 +211,7 @@ A new \code{Plumber} router
 \if{html}{\out{<a id="method-run"></a>}}
 \if{latex}{\out{\hypertarget{method-run}{}}}
 \subsection{Method \code{run()}}{
-Start a server using \code{plumber} object.
+Start a server using \code{Plumber} object.
 
 See also: \code{\link[=pr_run]{pr_run()}}
 \subsection{Usage}{
@@ -212,8 +219,11 @@ See also: \code{\link[=pr_run]{pr_run()}}
   host = "127.0.0.1",
   port = getOption("plumber.port", NULL),
   swagger = deprecated(),
-  debug = deprecated(),
-  swaggerCallback = deprecated()
+  debug = missing_arg(),
+  swaggerCallback = missing_arg(),
+  ...,
+  docs = missing_arg(),
+  quiet = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -230,11 +240,23 @@ Mac OS X, port numbers smaller than 1025 require root privileges.
 
 This value does not need to be explicitly assigned. To explicitly set it, see \code{\link[=options_plumber]{options_plumber()}}.}
 
-\item{\code{swagger}}{Deprecated. See \verb{$setDocs(docs)} or \verb{$setApiSpec()}}
+\item{\code{swagger}}{Deprecated. Please use \code{docs} instead. See \verb{$setDocs(docs)} or \verb{$setApiSpec()} for more customization.}
 
-\item{\code{debug}}{Deprecated. See \verb{$setDebug()}}
+\item{\code{debug}}{If \code{TRUE}, it will provide more insight into your API errors. Using this value will only last for the duration of the run. If a \verb{$setDebug()} has not been called, \code{debug} will default to \code{interactive()} at \verb{$run()} time. See \verb{$setDebug()} for more details.}
 
-\item{\code{swaggerCallback}}{Deprecated. See \verb{$setDocsCallback()}}
+\item{\code{swaggerCallback}}{An optional single-argument function that is
+called back with the URL to an OpenAPI user interface when one becomes
+ready. If missing, defaults to information previously set with \verb{$setDocsCallback()}.
+This value will only be used while running the router.}
+
+\item{\code{...}}{Should be empty.}
+
+\item{\code{docs}}{Visual documentation value to use while running the API.
+This value will only be used while running the router.
+If missing, defaults to information previously set with \code{setDocs()}.
+For more customization, see \verb{$setDocs()} or \code{\link[=pr_set_docs]{pr_set_docs()}} for examples.}
+
+\item{\code{quiet}}{If \code{TRUE}, don't print routine startup messages.}
 }
 \if{html}{\out{</div>}}
 }
@@ -421,7 +443,7 @@ See also: \code{\link[=pr_handle]{pr_handle()}}, \code{\link[=pr_get]{pr_get()}}
 
 \item{\code{endpoint}}{a \code{PlumberEndpoint} object.}
 
-\item{\code{...}}{additional arguments for \code{PlumberEndpoint} creation}
+\item{\code{...}}{additional arguments for \link{PlumberEndpoint} \code{new} method (namely \code{lines}, \code{params}, \code{comments}, \code{responses} and \code{tags}. Excludes \code{envir}).}
 }
 \if{html}{\out{</div>}}
 }
@@ -725,7 +747,7 @@ See also: \code{\link[=pr_set_docs]{pr_set_docs()}}, \code{\link[=register_docs]
 \item{\code{docs}}{a character value or a logical value. See \code{\link[=pr_set_docs]{pr_set_docs()}} for examples.
 If using \code{\link[=options_plumber]{options_plumber()}}, the value must be set before initializing your Plumber router.}
 
-\item{\code{...}}{Other params to be passed to \code{docs} functions.}
+\item{\code{...}}{Arguments for the visual documentation. See each visual documentation package for further details.}
 }
 \if{html}{\out{</div>}}
 }
@@ -737,8 +759,7 @@ If using \code{\link[=options_plumber]{options_plumber()}}, the value must be se
 Set a callback to notify where the API's visual documentation is located.
 
 When set, it will be called with a character string corresponding
-to the API docs url. This allows RStudio to open \code{swagger} docs when a
-Plumber router \code{\link[=pr_run]{pr_run()}} method is executed.
+to the API docs url. This allows RStudio to locate visual documentation.
 
 If using \code{\link[=options_plumber]{options_plumber()}}, the value must be set before initializing your Plumber router.
 
@@ -759,7 +780,7 @@ See also: \code{\link[=pr_set_docs_callback]{pr_set_docs_callback()}}
 \if{html}{\out{<a id="method-setDebug"></a>}}
 \if{latex}{\out{\hypertarget{method-setDebug}{}}}
 \subsection{Method \code{setDebug()}}{
-Set debug value to include error messages
+Set debug value to include error messages.
 
 See also: \verb{$getDebug()} and \code{\link[=pr_set_debug]{pr_set_debug()}}
 \subsection{Usage}{
@@ -778,7 +799,7 @@ See also: \verb{$getDebug()} and \code{\link[=pr_set_debug]{pr_set_debug()}}
 \if{html}{\out{<a id="method-getDebug"></a>}}
 \if{latex}{\out{\hypertarget{method-getDebug}{}}}
 \subsection{Method \code{getDebug()}}{
-Retrieve the \code{debug} value.
+Retrieve the \code{debug} value. If it has never been set, the result of \code{interactive()} will be used.
 
 See also: \verb{$getDebug()} and \code{\link[=pr_set_debug]{pr_set_debug()}}
 \subsection{Usage}{
@@ -813,7 +834,7 @@ See also: \code{\link[=pr_filter]{pr_filter()}}
 \if{html}{\out{<a id="method-setApiSpec"></a>}}
 \if{latex}{\out{\hypertarget{method-setApiSpec}{}}}
 \subsection{Method \code{setApiSpec()}}{
-Add a function to customize what is returned in \verb{$getApiSpec()}.
+Allows to modify router autogenerated OpenAPI Specification
 
 Note, the returned value will be sent through \code{\link[=serializer_unboxed_json]{serializer_unboxed_json()}} which will turn all length 1 vectors into atomic values.
 To force a vector to serialize to an array of size 1, be sure to call \code{\link[=as.list]{as.list()}} on your value. \code{list()} objects are always serialized to an array value.
@@ -830,6 +851,7 @@ See also: \code{\link[=pr_set_api_spec]{pr_set_api_spec()}}
 \itemize{
 \item an OpenAPI Specification formatted list object
 \item a function that accepts the OpenAPI Specification autogenerated by \code{plumber} and returns a OpenAPI Specification formatted list object.
+\item a path to an OpenAPI Specification
 }
 
 The value returned will not be validated for OAS compatibility.}
@@ -841,7 +863,7 @@ The value returned will not be validated for OAS compatibility.}
 \if{html}{\out{<a id="method-getApiSpec"></a>}}
 \if{latex}{\out{\hypertarget{method-getApiSpec}{}}}
 \subsection{Method \code{getApiSpec()}}{
-Retrieve openAPI file
+Retrieve OpenAPI file
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Plumber$getApiSpec()}\if{html}{\out{</div>}}
 }
@@ -952,7 +974,7 @@ addAssets has been deprecated in v0.4.0 and will be removed in a coming release.
 \if{html}{\out{<a id="method-openAPIFile"></a>}}
 \if{latex}{\out{\hypertarget{method-openAPIFile}{}}}
 \subsection{Method \code{openAPIFile()}}{
-Deprecated. Retrieve openAPI file
+Deprecated. Retrieve OpenAPI file
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Plumber$openAPIFile()}\if{html}{\out{</div>}}
 }
@@ -962,7 +984,7 @@ Deprecated. Retrieve openAPI file
 \if{html}{\out{<a id="method-swaggerFile"></a>}}
 \if{latex}{\out{\hypertarget{method-swaggerFile}{}}}
 \subsection{Method \code{swaggerFile()}}{
-Deprecated. Retrieve openAPI file
+Deprecated. Retrieve OpenAPI file
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{Plumber$swaggerFile()}\if{html}{\out{</div>}}
 }
