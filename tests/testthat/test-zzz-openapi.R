@@ -336,7 +336,7 @@ test_that("no params plumber router still produces spec when there is a func par
 
 test_that("Response content type set with serializer", {
   a <- pr()
-  pr_get(a, "/json", function() {"OK"}, serializer = serializer_json)
+  pr_get(a, "/json", function() {"OK"}, serializer = serializer_json())
   pr_get(a, "/csv", function() {"OK"}, serializer = serializer_csv())
   spec <- a$getApiSpec()
   expect_equal(spec$paths$`/json`$get$responses$`200`$content, list("application/json" = list(schema = list(type = "object"))))
@@ -346,4 +346,12 @@ test_that("Response content type set with serializer", {
 test_that("Api spec can be set using a file path", {
   pr <- pr() %>% pr_set_api_spec(test_path("files/openapi.yaml"))
   expect_equal(pr$getApiSpec()$paths$`/health-check`$get$summary, " Determine if the API is running and listening as expected")
+})
+
+test_that("RemoveNAorNULLs preserve nested examples", {
+  a <- list(schema = list(example = list(a = 5, b = list(NULL))), examples = list(a = 5, value = list(NULL)))
+  expect_identical(removeNaOrNulls(a), a)
+
+  a <- list(schema = list(value = list(NULL), b = list(NULL)))
+  expect_identical(removeNaOrNulls(a), list(schema = list(value = list(), b = list())))
 })

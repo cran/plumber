@@ -17,6 +17,22 @@ test_that("static txt file is served", {
   expect_equal(trimws(rawToChar(res$body)), "I am a text file.")
 })
 
+test_that("static txt file with encoded URI is served", {
+
+  # Some file systems cannot handle these characters.
+  testthat::skip_on_cran()
+
+  res <- PlumberResponse$new()
+  f <- test_path("files/static/测试.txt")
+  file.create(f)
+  on.exit(unlink(f), add = TRUE)
+  writeChar("here be dragons", f)
+  pr$route(make_req("GET", "/测试.txt"), res)
+  unlink(test_path("files/static/测试.txt"))
+  expect_equal(res$headers$`Content-Type`, "text/plain")
+  expect_equal(trimws(rawToChar(res$body)), "here be dragons")
+})
+
 test_that("static html file is served", {
   res <- PlumberResponse$new()
   pr$route(make_req("GET", "/index.html"), res)
@@ -29,6 +45,17 @@ test_that("root requests are routed to index.html", {
   pr$route(make_req("GET", "/"), res)
   expect_equal(res$headers$`Content-Type`, "text/html; charset=UTF-8")
   expect_equal(trimws(rawToChar(res$body)), "<html>I am HTML</html>")
+})
+
+test_that("HEAD requests are served correctly", {
+  for (path in c("/", "/index.html", "/test.txt", "/test.txt.zip")) {
+    resg <- PlumberResponse$new()
+    resh <- PlumberResponse$new()
+    pr$route(make_req("GET", path), resg)
+    pr$route(make_req("HEAD", path), resh)
+    expect_equal(resg$headers, resh$headers)
+    expect_type(resg$headers$`Last-Modified`, "character")
+  }
 })
 
 test_that("static binary file is served", {

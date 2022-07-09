@@ -346,6 +346,9 @@ pr_hooks <- function(pr,
 #'   \code{\link{random_cookie_key}}. Please see the "Storing secure keys" section for more details
 #'   complex character string to bolster security.
 #' @param name The name of the cookie in the user's browser.
+#' @param path The URI path that the cookie will be available in future requests.
+#'    Defaults to the request URI. Set to \code{"/"} to make cookie available to
+#'    all requests at the host.
 #' @param expiration A number representing the number of seconds into the future
 #'   before the cookie expires or a \code{POSIXt} date object of when the cookie expires.
 #'   Defaults to the end of the user's browser session.
@@ -360,7 +363,7 @@ pr_hooks <- function(pr,
 #'   accept the cookie. An error will be returned if \code{same_site = "None"} and \code{secure = FALSE}.
 #'   If not specified or a non-character is given, no SameSite policy is attached to the cookie.
 #' @seealso \itemize{
-#' \item \href{https://github.com/jeroen/sodium}{'sodium'}: R bindings to 'libsodium'
+#' \item \href{https://github.com/r-lib/sodium}{'sodium'}: R bindings to 'libsodium'
 #' \item \href{https://doc.libsodium.org/}{'libsodium'}: A Modern and Easy-to-Use Crypto Library
 #' \item \href{https://github.com/r-lib/keyring}{'keyring'}: Access the system credential store from R
 #' \item \href{https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#Directives}{Set-Cookie flags}: Descriptions of different flags for \code{Set-Cookie}
@@ -420,10 +423,19 @@ pr_cookie <- function(pr,
                       expiration = FALSE,
                       http = TRUE,
                       secure = FALSE,
-                      same_site = FALSE) {
+                      same_site = FALSE,
+                      path = NULL) {
   validate_pr(pr)
   pr$registerHooks(
-    session_cookie(key = key, name = name, expiration = expiration, http = http, secure = secure, same_site = same_site)
+    session_cookie(
+      key = key,
+      name = name,
+      expiration = expiration,
+      http = http,
+      secure = secure,
+      same_site = same_site,
+      path = path
+    )
   )
   pr
 }

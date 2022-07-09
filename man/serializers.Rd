@@ -3,13 +3,16 @@
 \name{serializer_headers}
 \alias{serializer_headers}
 \alias{serializer_content_type}
+\alias{serializer_octet}
 \alias{serializer_csv}
 \alias{serializer_tsv}
 \alias{serializer_html}
 \alias{serializer_json}
 \alias{serializer_unboxed_json}
+\alias{serializer_geojson}
 \alias{serializer_rds}
 \alias{serializer_feather}
+\alias{serializer_parquet}
 \alias{serializer_yaml}
 \alias{serializer_text}
 \alias{serializer_format}
@@ -30,6 +33,8 @@ serializer_headers(headers = list(), serialize_fn = identity)
 
 serializer_content_type(type, serialize_fn = identity)
 
+serializer_octet(..., type = "application/octet-stream")
+
 serializer_csv(..., type = "text/csv; charset=UTF-8")
 
 serializer_tsv(..., type = "text/tab-separated-values; charset=UTF-8")
@@ -40,9 +45,13 @@ serializer_json(..., type = "application/json")
 
 serializer_unboxed_json(auto_unbox = TRUE, ..., type = "application/json")
 
+serializer_geojson(..., type = "application/geo+json")
+
 serializer_rds(version = "2", ascii = FALSE, ..., type = "application/rds")
 
-serializer_feather(type = "application/feather")
+serializer_feather(type = "application/vnd.apache.arrow.file")
+
+serializer_parquet(type = "application/vnd.apache.parquet")
 
 serializer_yaml(..., type = "text/x-yaml; charset=UTF-8")
 
@@ -85,8 +94,8 @@ serializer_pdf(..., type = "application/pdf")
 
 \item{...}{extra arguments supplied to respective internal serialization function.}
 
-\item{auto_unbox}{automatically \code{\link[jsonlite]{unbox}} all atomic vectors of length 1. It is usually safer to avoid this and instead use the \code{\link[jsonlite]{unbox}} function to unbox individual elements.
-An exception is that objects of class \code{AsIs} (i.e. wrapped in \code{I()}) are not automatically unboxed. This is a way to mark single values as length-1 arrays.}
+\item{auto_unbox}{automatically \code{\link[jsonlite:unbox]{unbox()}} all atomic vectors of length 1. It is usually safer to avoid this and instead use the \code{\link[jsonlite:unbox]{unbox()}} function to unbox individual elements.
+An exception is that objects of class \code{AsIs} (i.e. wrapped in \code{\link[=I]{I()}}) are not automatically unboxed. This is a way to mark single values as length-1 arrays.}
 
 \item{version}{the workspace format version to use.  \code{NULL}
     specifies the current default version (3). The only other supported
@@ -118,6 +127,9 @@ more details on Plumber serializers and how to customize their behavior.
 
 \item \code{serializer_content_type}: Adds a \code{Content-Type} header to the response object
 
+\item \code{serializer_octet}: Octet serializer. If content is received that does
+not have a \code{"raw"} type, then an error will be thrown.
+
 \item \code{serializer_csv}: CSV serializer. See also: \code{\link[readr:format_delim]{readr::format_csv()}}
 
 \item \code{serializer_tsv}: TSV serializer. See also: \code{\link[readr:format_delim]{readr::format_tsv()}}
@@ -128,9 +140,13 @@ more details on Plumber serializers and how to customize their behavior.
 
 \item \code{serializer_unboxed_json}: JSON serializer with \code{auto_unbox} defaulting to \code{TRUE}. See also: \code{\link[jsonlite:fromJSON]{jsonlite::toJSON()}}
 
+\item \code{serializer_geojson}: GeoJSON serializer. See also \code{\link[geojsonsf:sf_geojson]{geojsonsf::sf_geojson()}} and [\code{\link[geojsonsf:sfc_geojson]{geojsonsf::sfc_geojson()}}].
+
 \item \code{serializer_rds}: RDS serializer. See also: \code{\link[base:serialize]{base::serialize()}}
 
-\item \code{serializer_feather}: feather serializer. See also: \code{\link[feather:read_feather]{feather::write_feather()}}
+\item \code{serializer_feather}: feather serializer. See also: \code{\link[arrow:write_feather]{arrow::write_feather()}}
+
+\item \code{serializer_parquet}: parquet serializer. See also: \code{\link[arrow:write_parquet]{arrow::write_parquet()}}
 
 \item \code{serializer_yaml}: YAML serializer. See also: \code{\link[yaml:as.yaml]{yaml::as.yaml()}}
 

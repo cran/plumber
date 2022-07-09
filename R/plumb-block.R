@@ -12,6 +12,7 @@ stopOnLine <- function(lineNum, line, msg){
 #' @param lineNum The line number just above the function we're documenting
 #' @param file A character vector representing all the lines in the file
 #' @param envir An environment where to evaluate parsed expressions
+#' @importFrom utils tail
 #' @noRd
 plumbBlock <- function(lineNum, file, envir = parent.frame()){
   paths <- NULL
@@ -250,7 +251,8 @@ plumbBlock <- function(lineNum, file, envir = parent.frame()){
     parsers = rev(parsers),
     assets = assets,
     params = rev(params),
-    comments = paste0(rev(comments), collapse = " "),
+    comments = tail(comments, 1),
+    description = paste0(rev(comments)[-1], collapse = "\n"),
     responses = rev(responses),
     tags = rev(tags),
     routerModifier = routerModifier
@@ -283,6 +285,7 @@ evaluateBlock <- function(srcref, file, expr, envir, addEndpoint, addFilter, pr)
         srcref = srcref,
         params = block$params,
         comments = block$comments,
+        description = block$description,
         responses = block$responses,
         tags = block$tags
       )

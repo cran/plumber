@@ -2,9 +2,9 @@ Encoding: UTF-8
 Package: plumber
 Type: Package
 Title: An API Generator for R
-Version: 1.1.0
+Version: 1.2.0
 Authors@R: c(
-  person("Barret", "Schloerke", role = c("cre", "aut"), email = "barret@rstudio.com"),
+  person("Barret", "Schloerke", role = c("cre", "aut"), email = "barret@rstudio.com", comment = c(ORCID = "0000-0001-9986-114X")),
   person("Jeff", "Allen", role = c("aut", "ccp"), email = "cran@trestletech.com"),
   person("Bruno", "Tremblay", role = "ctb", email = "cran@neoxone.com"),
   person("Frans", "van Dunné", role = "ctb", email = "frans@ixpantia.com"),
@@ -18,15 +18,15 @@ Description: Gives the ability to automatically generate and serve an HTTP API
     functions.
 Depends: R (>= 3.0.0)
 Imports: R6 (>= 2.0.0), stringi (>= 0.3.0), jsonlite (>= 0.9.16),
-        webutils (>= 1.1), httpuv (>= 1.5.0), crayon, promises (>=
+        webutils (>= 1.1), httpuv (>= 1.5.5), crayon, promises (>=
         1.1.0), sodium, swagger (>= 3.33.0), magrittr, mime, lifecycle
         (>= 0.2.0), ellipsis (>= 0.3.0), rlang
-LazyData: TRUE
 ByteCompile: TRUE
 Suggests: testthat (>= 0.11.0), rmarkdown, base64enc, htmlwidgets,
-        visNetwork, later, readr, yaml, feather, future, rstudioapi,
-        spelling, mockery (>= 0.4.2)
-RoxygenNote: 7.1.1
+        visNetwork, later, readr, yaml, arrow, future, coro,
+        rstudioapi, spelling, mockery (>= 0.4.2), geojsonsf, redoc,
+        rapidoc, sf
+RoxygenNote: 7.2.0
 Collate: 'async.R' 'content-types.R' 'default-handlers.R' 'hookable.R'
         'shared-secret-filter.R' 'parser-cookie.R' 'parse-body.R'
         'parse-query.R' 'plumber.R' 'deprecated-R6.R' 'deprecated.R'
@@ -39,9 +39,11 @@ Collate: 'async.R' 'content-types.R' 'default-handlers.R' 'hookable.R'
         'utils-pipe.R' 'utils.R' 'validate_api_spec.R' 'zzz.R'
 RdMacros: lifecycle
 Language: en-US
+Config/Needs/check: Cairo
+Config/Needs/website: tidyverse/tidytemplate
 NeedsCompilation: no
-Packaged: 2021-03-23 19:45:36 UTC; barret
-Author: Barret Schloerke [cre, aut],
+Packaged: 2022-07-09 22:11:25 UTC; barret
+Author: Barret Schloerke [cre, aut] (<https://orcid.org/0000-0001-9986-114X>),
   Jeff Allen [aut, ccp],
   Bruno Tremblay [ctb],
   Frans van Dunné [ctb],
@@ -49,4 +51,4 @@ Author: Barret Schloerke [cre, aut],
   RStudio [cph, fnd]
 Maintainer: Barret Schloerke <barret@rstudio.com>
 Repository: CRAN
-Date/Publication: 2021-03-24 05:10:02 UTC
+Date/Publication: 2022-07-09 22:30:02 UTC
