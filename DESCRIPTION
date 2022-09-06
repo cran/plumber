@@ -2,7 +2,7 @@ Encoding: UTF-8
 Package: plumber
 Type: Package
 Title: An API Generator for R
-Version: 1.2.0
+Version: 1.2.1
 Authors@R: c(
   person("Barret", "Schloerke", role = c("cre", "aut"), email = "barret@rstudio.com", comment = c(ORCID = "0000-0001-9986-114X")),
   person("Jeff", "Allen", role = c("aut", "ccp"), email = "cran@trestletech.com"),
@@ -26,7 +26,7 @@ Suggests: testthat (>= 0.11.0), rmarkdown, base64enc, htmlwidgets,
         visNetwork, later, readr, yaml, arrow, future, coro,
         rstudioapi, spelling, mockery (>= 0.4.2), geojsonsf, redoc,
         rapidoc, sf
-RoxygenNote: 7.2.0
+RoxygenNote: 7.2.1
 Collate: 'async.R' 'content-types.R' 'default-handlers.R' 'hookable.R'
         'shared-secret-filter.R' 'parser-cookie.R' 'parse-body.R'
         'parse-query.R' 'plumber.R' 'deprecated-R6.R' 'deprecated.R'
@@ -42,7 +42,7 @@ Language: en-US
 Config/Needs/check: Cairo
 Config/Needs/website: tidyverse/tidytemplate
 NeedsCompilation: no
-Packaged: 2022-07-09 22:11:25 UTC; barret
+Packaged: 2022-09-06 18:47:22 UTC; barret
 Author: Barret Schloerke [cre, aut] (<https://orcid.org/0000-0001-9986-114X>),
   Jeff Allen [aut, ccp],
   Bruno Tremblay [ctb],
@@ -51,4 +51,4 @@ Author: Barret Schloerke [cre, aut] (<https://orcid.org/0000-0001-9986-114X>),
   RStudio [cph, fnd]
 Maintainer: Barret Schloerke <barret@rstudio.com>
 Repository: CRAN
-Date/Publication: 2022-07-09 22:30:02 UTC
+Date/Publication: 2022-09-06 19:10:02 UTC
