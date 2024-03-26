@@ -82,7 +82,7 @@ haproxy
 htmlwidget
 http
 httpuv
-httr
+httr2
 imposter
 integrations
 interpretable
@@ -142,3 +142,5 @@ webhook’s
 
 ing
 Undeprecated
+httr
+RStudio
