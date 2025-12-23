@@ -1,7 +1,7 @@
-da976b672f20111acc7dfdb7ec56d64b *DESCRIPTION
+fdfff4e856381ddf7887944f74919fee *DESCRIPTION
 9bff9c7f87f60a5cb676ac4aed48e64f *LICENSE
 5cf8d02004521dd4a75469a8923b4b15 *NAMESPACE
-bde696102a04fb552506cd3f483cb524 *NEWS.md
+e2d8fe3643f9c36fb95df76c5816cbd9 *NEWS.md
 592019fb905feb331062e3f66a6eeca2 *R/async.R
 8ac8b36dc989f256935eb69c820db676 *R/content-types.R
 429ea8a8eac3610583789c97b0e90216 *R/default-handlers.R
@@ -253,4 +253,4 @@ a2d275797beb2a5c34ca36766e13789a *tests/testthat/test-sessions.R
 91ff96c375c05140306772c7255b9cea *tests/testthat/test-warnings.R
 7f3b597fac7253cdfe34c8ff74124f00 *tests/testthat/test-zzz-openapi.R
 aa79536d49a8c9cb25903f9774585505 *tests/testthat/test-zzz-plumb_api.R
-5ed29006a00fe6fb27506dfecffdd5ce *tests/testthat/test-zzzz-include.R
+5477c60cde5646412638859690e02b20 *tests/testthat/test-zzzz-include.R
