@@ -1,7 +1,7 @@
-fdfff4e856381ddf7887944f74919fee *DESCRIPTION
+48982a9ea4945f40e4b895c5f607d55a *DESCRIPTION
 9bff9c7f87f60a5cb676ac4aed48e64f *LICENSE
 5cf8d02004521dd4a75469a8923b4b15 *NAMESPACE
-e2d8fe3643f9c36fb95df76c5816cbd9 *NEWS.md
+7ecb37ba8861ab3887c2fe73e995f629 *NEWS.md
 592019fb905feb331062e3f66a6eeca2 *R/async.R
 8ac8b36dc989f256935eb69c820db676 *R/content-types.R
 429ea8a8eac3610583789c97b0e90216 *R/default-handlers.R
@@ -33,7 +33,7 @@ ec74697ecda06ff1de769ecb7232aef5 *R/pr.R
 629c400ed44c5027cc5ce08e11ba1ec5 *R/serializer.R
 ae22ff4cdceec521a23bc8cf8b2818ac *R/session-cookie.R
 b7615374019518aab20befe80afab8be *R/shared-secret-filter.R
-549383143887be07c130cebd0d1b03ab *R/ui.R
+8fc7dc1109905eb954526f5add376435 *R/ui.R
 f911e9918ebfedc0feea1b0e1c001482 *R/utf8.R
 65cef5e0674056f6fc07dd2b3ca85c13 *R/utils-pipe.R
 45120858b81df5beea2ec7b3019dab62 *R/utils.R
@@ -150,7 +150,7 @@ b8cef7670d9383bddc3880d897a83858 *tests/testthat/files/html.R
 a3bc7f49410e6998c41360b7250c8295 *tests/testthat/files/in-env.R
 384a70b4289cb80ed0be23d1fdc139eb *tests/testthat/files/include/test-html.html
 c677aab4146a4ef9d6ba97c751598532 *tests/testthat/files/include/test.Rmd
-1756c499eaf951d328109255dedc097d *tests/testthat/files/include/test.html
+3b38a1395234ebdf405c7aded9fa96f1 *tests/testthat/files/include/test.html
 289d91666904152993f4e74c9b63a67f *tests/testthat/files/include/test.md
 9ba80b8c84a0171e8e7f58ffc66e7566 *tests/testthat/files/include/test.txt
 7e31f5c34490dec468295bed71420e25 *tests/testthat/files/includes.R
@@ -219,7 +219,7 @@ bbf2bc6797b87aa227f2c76b3dd89f76 *tests/testthat/test-injection.R
 6e197e611c93040d9e0a0efc39e59212 *tests/testthat/test-options.R
 bd6f985efbf2be60d4d2029d9860bba8 *tests/testthat/test-parse-block.R
 0b3308eba9d4d42bb632b3dce2077487 *tests/testthat/test-parse-body.R
-109f6d644726e5fba4d1598246fde115 *tests/testthat/test-parser.R
+d116f618ce46d12ff32895ff286a9fe2 *tests/testthat/test-parser.R
 b487a6a1d043d6cf16a009ef2ccdb73b *tests/testthat/test-path-subst.R
 7017241915397b95bfc72d52f7fb3dfd *tests/testthat/test-plumber-print.R
 f344a7367249856e8d46731c41656d25 *tests/testthat/test-plumber-run.R
@@ -247,8 +247,9 @@ a2d275797beb2a5c34ca36766e13789a *tests/testthat/test-sessions.R
 76e6f7cf84e0ecbd752d6a58e347c1d4 *tests/testthat/test-shared-secret.R
 7d5e6afc16ed7afe601d8a984ef251c6 *tests/testthat/test-source-values.R
 219dc07d495671008fb4483b6caba936 *tests/testthat/test-static.R
+cd0e74ccaf573bf1eaef2a1098d0ac68 *tests/testthat/test-swagger-redirects.R
 1523742e927bbc13a51f892388950cc2 *tests/testthat/test-tidy-plumber.R
-9badcbe05fcb74a6e590115a78df4e69 *tests/testthat/test-ui-apipath.R
+372f46d8b886b52d71359eae4895f6d9 *tests/testthat/test-ui-apipath.R
 4fa6cda68e4968db74888d4e4ceb2d2e *tests/testthat/test-utf8.R
 91ff96c375c05140306772c7255b9cea *tests/testthat/test-warnings.R
 7f3b597fac7253cdfe34c8ff74124f00 *tests/testthat/test-zzz-openapi.R
